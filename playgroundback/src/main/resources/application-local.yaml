@@ -1,0 +1,24 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:playground;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1
+    username: sa
+    password:
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+  jpa:
+    hibernate:
+      ddl-auto: create
+    defer-datasource-initialization: true
+    properties:
+      hibernate:
+        format_sql: true
+    show-sql: true
+
+playground:
+  session:
+    cookie-secure: false
+  websocket:
+    allowed-origins:
+      - http://localhost:*

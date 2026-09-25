@@ -1,0 +1,18 @@
+= 놀이터(playground) API 문서
+:doctype: book
+:icons: font
+:source-highlighter: highlightjs
+:toc: left
+:toclevels: 2
+:sectlinks:
+
+[[overview]]
+== 개요
+
+모든 경로는 `/pg/api` 아래에 있다. 인증은 `sessionKey` 세션 쿠키로 한다.
+
+[[overview-response]]
+=== 응답 형식
+
+성공은 `{ "success": true, "data": { } }`, 실패는 `{ "success": false, "error": { "code", "message" } }` 이다.
+본문이 없는 성공은 `204 No Content`, 생성은 `201 Created` 로 응답한다.

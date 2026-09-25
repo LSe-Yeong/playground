@@ -1,3 +1,34 @@
 spring:
   application:
     name: playgroundback
+  profiles:
+    default: local
+  jpa:
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  task:
+    scheduling:
+      pool:
+        size: 4
+      thread-name-prefix: playground-scheduler-
+
+server:
+  servlet:
+    context-path: /pg/api
+  shutdown: graceful
+
+playground:
+  session:
+    cookie-name: sessionKey
+    cookie-secure: true
+    connect-timeout: 60s
+    heartbeat-timeout: 90s
+    sweep-interval: 30s
+  websocket:
+    send-time-limit: 10s
+    buffer-size-limit: 512KB
+    allowed-origins:
+      - https://playground.app
