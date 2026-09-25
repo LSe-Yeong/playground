@@ -116,6 +116,35 @@ const ART_SOON = '<img src="image/coming-soon.webp" alt="준비 중" loading="la
 /* 놀이터에 올라가는 게임 목록 — 게임을 추가하려면 여기에 한 줄 추가한다.
    art 는 카드 상단 그림: <img> 나 인라인 <svg> 를 넣고, 없으면 icon 이 크게 표시된다. */
 const GAMES = [
+  /* 게임이 아니라 소통 공간. 카드를 누르면 놀이터로 들어간다 */
+  { id: 'plaza', name: '놀이터', en: 'Plaza', icon: '🛝', tone: '#5bc236', ready: true,
+    cta: '입장하기', badge: '상시 열림',
+    art: `<svg viewBox="0 0 320 180" aria-hidden="true">
+      <rect width="320" height="180" fill="#9fd9f2"/>
+      <circle cx="268" cy="36" r="22" fill="#ffcf33"/>
+      <ellipse cx="60" cy="40" rx="34" ry="14" fill="#fff" opacity=".92"/>
+      <ellipse cx="150" cy="26" rx="26" ry="11" fill="#fff" opacity=".85"/>
+      <path d="M0 112q80-42 170-18 80 21 150-6v92H0z" fill="#7ec74a"/>
+      <rect y="126" width="320" height="54" fill="#63b93a"/>
+      <ellipse cx="160" cy="150" rx="104" ry="26" fill="#eed8ae"/>
+      <g fill="#a9743f"><rect x="46" y="86" width="7" height="34" rx="3"/><rect x="262" y="92" width="7" height="30" rx="3"/></g>
+      <circle cx="50" cy="78" r="22" fill="#5bc236"/><circle cx="34" cy="90" r="14" fill="#4aa81f"/>
+      <circle cx="266" cy="84" r="19" fill="#4aa81f"/><circle cx="280" cy="94" r="12" fill="#5bc236"/>
+      <ellipse cx="160" cy="140" rx="30" ry="10" fill="#7fc9ec"/>
+      <rect x="155" y="112" width="10" height="24" rx="5" fill="#eaf1f4"/>
+      <ellipse cx="160" cy="112" rx="15" ry="5" fill="#eaf1f4"/>
+      <g>
+        <ellipse cx="112" cy="156" rx="13" ry="4" fill="#20303a" opacity=".2"/>
+        <path d="M112 128a13 15 0 0 1 13 15v5a13 10 0 0 1-26 0v-5a13 15 0 0 1 13-15z" fill="#f0553d"/>
+        <ellipse cx="204" cy="162" rx="13" ry="4" fill="#20303a" opacity=".2"/>
+        <path d="M204 134a13 15 0 0 1 13 15v5a13 10 0 0 1-26 0v-5a13 15 0 0 1 13-15z" fill="#2d9cdb"/>
+        <ellipse cx="160" cy="170" rx="13" ry="4" fill="#20303a" opacity=".2"/>
+        <path d="M160 142a13 15 0 0 1 13 15v5a13 10 0 0 1-26 0v-5a13 15 0 0 1 13-15z" fill="#9b6bdb"/>
+      </g>
+    </svg>`,
+    desc: '캐릭터를 움직이며 다른 사람들과 이야기하는 공간. 게임이 아니라 그냥 모이는 곳이다',
+    tags: ['소통', '자유 이동', '채팅'],
+    players: '제한 없음', time: '자유' },
   { id: 'onemore', name: '한번더', en: 'OneMoreTime', icon: '⛏', tone: '#f0553d', ready: true,
     art: '<img src="image/omt-thumb.webp" alt="한번더 썸네일" loading="lazy" decoding="async">',
     desc: '주사위 4개로 11개의 갱도를 파내려가, 가장 깊은 곳의 보물 3개를 먼저 찾는 사람이 이긴다',
@@ -235,6 +264,7 @@ function show(name) {
   document.body.dataset.screen = name;        /* 채팅 위치를 화면에 맞춘다 */
   if (name !== 'lobby' && name !== 'game') toggleChat(false, true);
   if (name === 'lobby') startStage(); else stopStage();
+  if (name !== 'plaza') stopPlaza();          /* 놀이터를 벗어나면 루프를 멈춘다 */
 }
 
 /* ===========================================================
@@ -384,6 +414,7 @@ function renderPlayground() {
 
   track.innerHTML = GAMES.map((g) => {
     let badge = g.ready ? '<span class="badge live">플레이 가능</span>' : '<span class="badge">준비 중</span>';
+    if (g.badge) badge = `<span class="badge live">${esc(g.badge)}</span>`;
     if (g.id === 'onemore' && saved) badge = `<span class="badge resume">${saved.started ? '진행 중' : '대기실'}</span>`;
     return `<article class="gcard ${g.ready ? '' : 'soon'}">
       <div class="gcard-art ${g.art ? 'has-art' : ''}" style="background:${g.tone}">
@@ -395,7 +426,7 @@ function renderPlayground() {
         ${g.tags?.length ? `<div class="gcard-tags">${g.tags.map((t) => `<span class="tag">#${esc(t)}</span>`).join('')}</div>` : ''}
         <div class="gcard-meta"><span>👥 ${g.players}</span><span>⏱ ${g.time}</span></div>
         <button class="btn ${g.ready ? 'primary' : ''} big" data-game="${g.id}" ${g.ready ? '' : 'disabled'}>
-          ${g.ready ? '플레이' : '준비 중'}
+          ${g.cta || (g.ready ? '플레이' : '준비 중')}
         </button>
       </div>
     </article>`;
@@ -412,6 +443,7 @@ function renderPlayground() {
 $('#game-track').onclick = (e) => {
   const b = e.target.closest('[data-game]'); if (!b || b.disabled) return;
   Sound.play('click');
+  if (b.dataset.game === 'plaza') { openPlaza(); return; }
   refreshHome();
   show('home');
 };
@@ -489,7 +521,7 @@ $$('.profile').forEach((el) => (el.onclick = async (e) => {
   const b = e.target.closest('[data-pf]'); if (!b) return;
   if (b.dataset.pf === 'edit') {
     const v = await askNick('이름 수정', '다른 참여자에게 보이는 이름입니다', '저장');
-    if (v) { renderProfile(); renderOnline(); toast('이름을 바꿨습니다'); }
+    if (v) { renderProfile(); renderOnline(); pzSyncMe(); toast('이름을 바꿨습니다'); }
   } else {
     renderAvatars();
     $('#overlay-avatar').hidden = false;
@@ -506,7 +538,7 @@ $('#avatar-grid').onclick = (e) => {
   const b = e.target.closest('[data-avatar]'); if (!b) return;
   profile.emoji = b.dataset.avatar;
   saveProfile();
-  renderProfile(); renderOnline();
+  renderProfile(); renderOnline(); pzSyncMe();
   $('#overlay-avatar').hidden = true;
   Sound.play('join');
   toast('프로필 사진을 바꿨습니다');
@@ -1876,3 +1908,689 @@ seedRooms();
 seedOnline();
 refreshHome();
 document.addEventListener('pointerdown', () => Sound.ensure(), { once: true });
+
+/* ===========================================================
+   놀이터 — 캐릭터를 움직이며 이야기하는 공간
+   OMT 와 섞이지 않도록 상태·DOM·CSS 를 모두 따로 둔다.
+   (G 를 쓰지 않으므로 방·게임 상태에 영향이 없다)
+   =========================================================== */
+const PZ_BOUND = { x0: 6, x1: 94, y0: 56, y1: 94 };   /* 걸어 다닐 수 있는 범위(%) */
+const PZ_SPEED = 19;                                  /* 초당 % 이동 */
+const PZ_BUBBLE_MS = 4200;
+const PZ_CHAT_KEEP = 60;
+const PZ_TALK = [
+  '안녕하세요~', '여기 누구 있어요?', '한번더 하실 분?', '오늘 날씨 좋네요',
+  '분수 예쁘다', '저 벤치에 앉을래요', '반가워요!', '잠깐 쉬는 중',
+  '같이 게임해요', '두 명만 더 모이면 될 듯', '좀 있다 올게요', '하이하이',
+];
+
+/* 다가가서 Space 를 누를 수 있는 지점들.
+   x/y 는 마크업의 --x/--y 와 같아야 하고, rx/ry 는 "가까이 왔다"고 볼 반경(%).
+   세로로 걷는 범위가 가로보다 좁아 두 축을 따로 둔다.
+   cy 는 안내 문구가 뜰 높이, ride 는 올라탔을 때 캐릭터가 설 자리 */
+const PZ_SPOTS = [
+  { id: 'dj',     kind: 'dj',   label: '곡 선택', x: 82, y: 49, rx: 14, ry: 10, cy: 36 },
+  { id: 'swing',  kind: 'ride', label: '타기',    x: 16, y: 66, rx: 11, ry: 8,  cy: 52,
+    anim: 'ride-swing',  needs: 1, seats: [{ x: 14, y: 60 }, { x: 19, y: 61 }] },
+  /* 시소는 혼자서는 안 움직인다. 양쪽에 한 명씩 앉아야 한다 */
+  { id: 'seesaw', kind: 'ride', label: '타기',    x: 64, y: 74, rx: 11, ry: 8,  cy: 66,
+    anim: 'ride-seesaw', needs: 2, seats: [{ x: 58.5, y: 70 }, { x: 69.5, y: 70 }] },
+  { id: 'merry',  kind: 'ride', label: '타기',    x: 9,  y: 88, rx: 10, ry: 7,  cy: 78,
+    anim: 'ride-merry',  needs: 1, seats: [{ x: 9, y: 84 }] },
+];
+const PZ_DJ = PZ_SPOTS[0];                 /* 자주 쓰는 지점은 이름을 따로 둔다 */
+
+/* 숫자키로 내는 표정 */
+const PZ_EMOTES = { 1: '👋', 2: '❓', 3: '😄', 4: '🎉' };
+const PZ_EMOTE_MS = 2200;
+const PZ_TRACKS = [
+  { id: 'energetic', title: '신나는 하루', mood: 'Energetic', sec: 132, src: 'audio/01_energetic_inst.mp3' },
+  { id: 'calm',      title: '잔잔한 오후', mood: 'Calm',      sec: 132, src: 'audio/02_calm_inst.mp3' },
+  { id: 'tension',   title: '두근두근',    mood: 'Tension',   sec: 132, src: 'audio/03_tension_inst.mp3' },
+  { id: 'cute',      title: '깡총깡총',    mood: 'Cute',      sec: 132, src: 'audio/04_cute_inst.mp3' },
+  { id: 'mystic',    title: '신비한 숲',   mood: 'Mystic',    sec: 132, src: 'audio/05_mystic_inst.mp3' },
+  { id: 'epic',      title: '웅장한 광장', mood: 'Epic',      sec: 132, src: 'audio/06_epic_inst.mp3' },
+];
+
+const PZ = {
+  on: false, raf: null, last: 0, botTimer: null, emoteTimer: null,
+  me: null, people: [], els: new Map(), keys: new Set(), chat: [],
+  track: null, near: null, lastSec: -1,
+  spot: null, riding: null, tod: null, clock: null,
+  seats: {}, seesawTimer: null,
+};
+
+const pzRand = (a, b) => a + Math.random() * (b - a);
+const pzClamp = (v, a, b) => (v < a ? a : v > b ? b : v);
+
+function pzMakePerson(name, emoji, color, me = false) {
+  return {
+    id: 'pz' + Math.random().toString(36).slice(2, 8),
+    name, emoji, color, me,
+    x: pzRand(PZ_BOUND.x0 + 6, PZ_BOUND.x1 - 6),
+    y: pzRand(PZ_BOUND.y0 + 4, PZ_BOUND.y1 - 2),
+    tx: null, ty: null, wait: 0, walking: false, lean: 0,
+  };
+}
+
+/* 접속해 있는 사람들 — 서버가 없으므로 모의 데이터 */
+function pzSeed() {
+  const pool = shuffle([...BOT_NAMES]).slice(0, 5 + Math.floor(Math.random() * 3));
+  const cols = shuffle([...COLORS]);
+  PZ.me = pzMakePerson(profile.nick, profile.emoji, colorHex(cols[0].id), true);
+  PZ.people = [PZ.me, ...pool.map((n, i) =>
+    pzMakePerson(n, AVATARS[Math.floor(Math.random() * AVATARS.length)],
+                 colorHex(cols[(i + 1) % cols.length].id)))];
+  PZ.chat = [];
+}
+
+function pzBuild() {
+  const field = $('#plaza-field');
+  /* 놀이기구는 HTML 에 있으므로 지우지 않고, 캐릭터만 갈아 끼운다 */
+  field.querySelectorAll('.pz-ch').forEach((el) => el.remove());
+
+  const chHtml = PZ.people.map((p, i) => `
+    <div class="pz-ch ${p.me ? 'is-me' : ''}" id="${p.id}" style="--delay:${(i % 4) * 0.35}s">
+      <span class="pz-bubble"></span>
+      <span class="pz-emote"></span>
+      <span class="pz-shadow"></span>
+      <span class="pz-body" style="background:${p.color}"></span>
+      <span class="pz-name">${esc(p.name)}</span>
+    </div>`).join('');
+
+  field.insertAdjacentHTML('beforeend', chHtml);
+
+  PZ.els = new Map(PZ.people.map((p) => {
+    const el = $('#' + p.id);
+    return [p.id, {
+      root: el,
+      bubble: el.querySelector('.pz-bubble'),
+      emote: el.querySelector('.pz-emote'),
+      name: el.querySelector('.pz-name'),
+    }];
+  }));
+  PZ.people.forEach(pzApply);
+  $('#plaza-count').textContent = `${PZ.people.length}명`;
+}
+
+function pzApply(p) {
+  const el = PZ.els.get(p.id); if (!el) return;
+  const s = el.root.style;
+  s.setProperty('--x', p.x.toFixed(2) + '%');
+  s.setProperty('--y', p.y.toFixed(2) + '%');
+  s.setProperty('--lean', p.lean.toFixed(1) + 'deg');
+  s.zIndex = Math.round(p.y * 10);
+  el.root.classList.toggle('walk', p.walking);
+}
+
+/* 봇은 목표 지점을 정하고 천천히 걸어간 뒤 잠시 쉰다 */
+function pzWander(p, dt) {
+  if (p.riding) { p.walking = false; return; }
+  if (p.goal) {                                  /* 기구에 앉으러 가는 중 */
+    const s = pzSpot(p.goal);
+    const i = s ? pzFreeSeat(s) : -1;
+    if (i === -1) { p.goal = null; }
+    else {
+      const dx = s.x - p.x, dy = s.y - p.y, d = Math.hypot(dx, dy);
+      if (d < 1.5) { p.goal = null; pzSit(p, s, i); return; }
+      const step = Math.min(d, PZ_SPEED * 0.55 * dt);
+      p.x += (dx / d) * step; p.y += (dy / d) * step * 0.6;
+      p.lean = dx > 0 ? 5 : -5; p.walking = true;
+      return;
+    }
+  }
+  if (p.wait > 0) { p.wait -= dt; p.walking = false; return; }
+  if (p.tx == null) {
+    p.tx = pzRand(PZ_BOUND.x0, PZ_BOUND.x1);
+    p.ty = pzRand(PZ_BOUND.y0, PZ_BOUND.y1);
+  }
+  const dx = p.tx - p.x, dy = p.ty - p.y;
+  const d = Math.hypot(dx, dy);
+  if (d < 1) { p.tx = null; p.wait = pzRand(1.2, 4.5); p.walking = false; return; }
+  const step = Math.min(d, PZ_SPEED * 0.55 * dt);
+  p.x += (dx / d) * step;
+  p.y += (dy / d) * step * 0.6;          /* 세로는 원근 때문에 덜 움직인다 */
+  p.lean = dx > 0 ? 5 : -5;
+  p.walking = true;
+}
+
+function pzMoveMe(dt) {
+  if (PZ.riding) { PZ.me.walking = false; return; }   /* 기구 위에서는 움직이지 않는다 */
+  const k = PZ.keys;
+  let dx = (k.has('right') ? 1 : 0) - (k.has('left') ? 1 : 0);
+  let dy = (k.has('down') ? 1 : 0) - (k.has('up') ? 1 : 0);
+  const me = PZ.me;
+  if (!dx && !dy) { me.walking = false; me.lean = 0; return; }
+  const n = Math.hypot(dx, dy) || 1;
+  me.x = pzClamp(me.x + (dx / n) * PZ_SPEED * dt, PZ_BOUND.x0, PZ_BOUND.x1);
+  me.y = pzClamp(me.y + (dy / n) * PZ_SPEED * 0.6 * dt, PZ_BOUND.y0, PZ_BOUND.y1);
+  me.lean = dx ? (dx > 0 ? 6 : -6) : 0;
+  me.walking = true;
+}
+
+function pzTick(now) {
+  if (!PZ.on) return;
+  const dt = Math.min(0.05, (now - PZ.last) / 1000 || 0);
+  PZ.last = now;
+  pzMoveMe(dt);
+  for (const p of PZ.people) if (!p.me) pzWander(p, dt);
+  for (const p of PZ.people) pzApply(p);
+  pzUpdateCue();
+  pzRenderPlayer();
+  pzUpdateTod();
+  pzUpdateClock();
+  PZ.raf = requestAnimationFrame(pzTick);
+}
+
+/* ---------- DJ 부스 ---------- */
+const pzDist = (s) => Math.hypot((PZ.me.x - s.x) / s.rx, (PZ.me.y - s.y) / s.ry);
+
+/* 반경 안에 든 지점 중 가장 가까운 하나 */
+function pzNearSpot() {
+  if (!PZ.me) return null;
+  let best = null, bestD = Infinity;
+  for (const s of PZ_SPOTS) {
+    const d = pzDist(s);
+    if (d <= 1 && d < bestD) { best = s; bestD = d; }
+  }
+  return best;
+}
+function pzNearDJ() { const s = pzNearSpot(); return !!s && s.kind === 'dj'; }
+
+/* 매 프레임 돌지만 상태가 바뀔 때만 DOM 을 건드린다 */
+function pzUpdateCue() {
+  const spot = PZ.riding ? pzSpot(PZ.riding) : pzNearSpot();
+  const id = spot ? spot.id : null;
+  if (id === PZ.near) return;
+  PZ.near = id;
+
+  const cue = $('#plaza-cue');
+  cue.hidden = !spot;
+  if (!spot) return;
+  cue.style.setProperty('--x', spot.x + '%');
+  cue.style.setProperty('--y', spot.cy + '%');
+  $('#plaza-cue-label').textContent = PZ.riding ? '내리기' : spot.label;
+}
+
+const pzSpot = (id) => PZ_SPOTS.find((s) => s.id === id) || null;
+
+/* ---------- 기구 타기 ---------- */
+const pzTaken = (spot) => (PZ.seats[spot.id] ||= spot.seats.map(() => null));
+const pzRiderCount = (spot) => pzTaken(spot).filter(Boolean).length;
+const pzFreeSeat = (spot) => pzTaken(spot).findIndex((v) => !v);
+
+/* 기구가 움직일지는 "몇 명이 탔는가" 로 정한다.
+   시소는 needs 가 2 라 혼자 앉으면 그쪽으로 기운 채 멈춰 있다 */
+function pzUpdateRig(spot) {
+  const prop = $('#prop-' + spot.id);
+  if (!prop) return;
+  const taken = pzTaken(spot);
+  const n = taken.filter(Boolean).length;
+  const active = n >= spot.needs;
+  prop.classList.toggle('riding', active);
+  prop.classList.toggle('solo-0', !active && !!taken[0]);
+  prop.classList.toggle('solo-1', !active && !!taken[1]);
+
+  for (const [i, id] of taken.entries()) {
+    if (!id) continue;
+    const el = PZ.els.get(id);
+    if (el) el.root.classList.toggle('solo', !active);
+  }
+}
+
+function pzSit(person, spot, i) {
+  pzTaken(spot)[i] = person.id;
+  person.riding = spot.id; person.seat = i;
+  person.x = spot.seats[i].x; person.y = spot.seats[i].y;
+  person.walking = false; person.lean = 0;
+  const el = PZ.els.get(person.id);
+  if (el) el.root.classList.add('ride', spot.anim, 'seat-' + i);
+  pzUpdateRig(spot);
+}
+
+function pzStand(person) {
+  const spot = pzSpot(person.riding);
+  if (!spot) return;
+  const taken = pzTaken(spot);
+  const i = taken.indexOf(person.id);
+  if (i !== -1) taken[i] = null;
+  person.riding = null; person.seat = null;
+  const el = PZ.els.get(person.id);
+  if (el) el.root.classList.remove('ride', 'ride-swing', 'ride-seesaw', 'ride-merry',
+                                   'seat-0', 'seat-1', 'solo');
+  person.x = spot.x; person.y = spot.y + 2;      /* 기구 앞에 내려선다 */
+  pzUpdateRig(spot);
+}
+
+function pzRide(spot) {
+  const i = pzFreeSeat(spot);
+  if (i === -1) { toast('자리가 없습니다', 'bad'); return; }
+  PZ.keys.clear();
+  pzSit(PZ.me, spot, i);
+  PZ.riding = spot.id;
+  PZ.near = null;                          /* 안내 문구를 "내리기" 로 다시 그린다 */
+  Sound.play('join');
+}
+
+function pzDismount() {
+  pzStand(PZ.me);
+  PZ.riding = null;
+  PZ.near = null;
+  Sound.play('click');
+}
+
+/* 혼자 앉아 있으면 다른 사람이 반대편으로 와서 앉는다 */
+function pzSeesawTick() {
+  const spot = pzSpot('seesaw');
+  const free = pzFreeSeat(spot);
+  const n = pzRiderCount(spot);
+  if (n >= 1 && free !== -1) {
+    const cand = PZ.people.filter((p) => !p.me && !p.riding && !p.goal);
+    if (cand.length) cand[Math.floor(Math.random() * cand.length)].goal = 'seesaw';
+  } else if (n === 2) {
+    /* 둘 다 앉아 있으면 가끔 봇이 일어난다 */
+    const bot = PZ.people.find((p) => !p.me && p.riding === 'seesaw');
+    if (bot && Math.random() < 0.25) pzStand(bot);
+  }
+  PZ.seesawTimer = setTimeout(pzSeesawTick, pzRand(2500, 5000));
+}
+
+/* ---------- 이모트 ---------- */
+const pzEmoteTimers = new Map();
+
+function pzEmote(p, mark) {
+  const el = PZ.els.get(p.id);
+  if (!el || !el.emote) return;
+  el.emote.textContent = mark;
+  el.emote.classList.add('on');
+  clearTimeout(pzEmoteTimers.get(p.id));
+  pzEmoteTimers.set(p.id, setTimeout(() => el.emote.classList.remove('on'), PZ_EMOTE_MS));
+}
+
+/* ---------- 낮 / 밤 ---------- */
+function pzTimeOfDay(h) {
+  if (h >= 5 && h < 7) return 'dawn';
+  if (h >= 7 && h < 17) return 'day';
+  if (h >= 17 && h < 19) return 'dusk';
+  return 'night';
+}
+
+/* 12시간제 AM/PM. 0시는 12 AM, 12시는 12 PM 이다 */
+function pzClockText(d) {
+  const h24 = d.getHours();
+  const h = h24 % 12 || 12;
+  return `${h}:${String(d.getMinutes()).padStart(2, '0')} ${h24 < 12 ? 'AM' : 'PM'}`;
+}
+const PZ_TOD_ICON = { dawn: '🌅', day: '☀️', dusk: '🌇', night: '🌙' };
+
+function pzUpdateClock(now = new Date()) {
+  const text = pzClockText(now);
+  if (text === PZ.clock) return;          /* 분이 바뀔 때만 DOM 을 건드린다 */
+  PZ.clock = text;
+  $('#pz-clock-time').textContent = text;
+  $('#pz-clock-icon').textContent = PZ_TOD_ICON[pzTimeOfDay(now.getHours())];
+}
+
+function pzUpdateTod(now = new Date()) {
+  const tod = pzTimeOfDay(now.getHours());
+  if (tod === PZ.tod) return;
+  PZ.tod = tod;
+  $('#screen-plaza').dataset.tod = tod;
+}
+
+function pzRenderTracks() {
+  $('#dj-list').innerHTML = PZ_TRACKS.map((tr) => `
+    <button class="dj-track ${PZ.track && PZ.track.id === tr.id ? 'on' : ''}" data-track="${tr.id}">
+      <b>${esc(tr.title)}</b><span>${esc(tr.mood)}</span>
+    </button>`).join('');
+  $('#dj-now').textContent = PZ.track ? `지금 나오는 곡 — ${PZ.track.title}` : '지금 나오는 곡 — 없음';
+}
+
+/* 재생 위치는 "시작 시각"에서 계산한다. 남은 초를 따로 들고 있으면
+   탭이 멈췄다 돌아왔을 때 어긋난다. 서버가 붙으면 startedAt 이 서버 시각이 된다 */
+const pzNow = () => performance.now();
+
+/* ---------- 음원 재생 ----------
+   상태(어떤 곡을 언제 시작했는지)가 먼저이고 오디오는 그 상태를 따라간다.
+   서버가 붙으면 startedAt 만 서버 시각으로 바뀌고 나머지는 그대로다 */
+let pzAudio = null;
+const PZ_VOL_KEY = SAVE_KEY + '.pzvol';
+let pzVol = 70;                            /* 0~100 */
+try {
+  const raw = localStorage.getItem(PZ_VOL_KEY);   /* 없으면 null — Number(null) 은 0 이라 먼저 거른다 */
+  const v = raw === null ? NaN : Number(raw);
+  if (Number.isFinite(v) && v >= 0 && v <= 100) pzVol = v;
+} catch {}
+
+function pzSound() {
+  if (pzAudio || typeof Audio === 'undefined') return pzAudio;
+  pzAudio = new Audio();
+  pzAudio.preload = 'none';
+  pzAudio.loop = false;
+  return pzAudio;
+}
+
+/* 곡을 지금 위치부터 재생한다. 브라우저는 클릭 같은 사용자 동작 없이는
+   소리를 내주지 않는데, 곡 선택 자체가 클릭이라 그 흐름에서는 허용된다 */
+function pzAudioPlay(track, at = 0) {
+  const a = pzSound();
+  if (!a || !track.src) return;
+  const url = new URL(track.src, location.href).href;
+  if (a.src !== url) { a.src = track.src; a.load(); }
+  a.volume = pzVol / 100;
+  try { a.currentTime = at; } catch {}
+  a.play().catch(() => toast('브라우저가 자동재생을 막았습니다', 'bad'));
+}
+
+function pzAudioStop() {
+  const a = pzSound();
+  if (!a) return;
+  a.pause();
+  try { a.currentTime = 0; } catch {}
+}
+
+const pzVolIcon = (v) => (v === 0 ? '🔇' : v < 40 ? '🔈' : v < 75 ? '🔉' : '🔊');
+
+function pzRenderVol() {
+  const r = $('#pz-vol-range');
+  if (r) {
+    r.value = String(pzVol);
+    r.style.setProperty('--fill', pzVol + '%');
+  }
+  const i = $('#pz-vol-icon');
+  if (i) i.textContent = pzVolIcon(pzVol);
+  const a = pzSound();
+  if (a) a.volume = pzVol / 100;
+}
+
+function pzSetVol(v) {
+  pzVol = Math.max(0, Math.min(100, Math.round(Number(v) || 0)));
+  try { localStorage.setItem(PZ_VOL_KEY, String(pzVol)); } catch {}
+  pzRenderVol();
+}
+const pzTime = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+
+function pzAdvance() {
+  const i = PZ_TRACKS.findIndex((x) => x.id === PZ.track.id);
+  const next = PZ_TRACKS[(i + 1) % PZ_TRACKS.length];
+  PZ.track = { ...next, startedAt: pzNow() };
+  PZ.lastSec = -1;
+  pzAudioPlay(next, 0);
+  pzRenderNow(); pzRenderTracks();
+}
+
+function pzRenderPlayer() {
+  const box = $('#pz-player');
+  if (!PZ.track) { box.hidden = true; PZ.lastSec = -1; return; }
+  box.hidden = false;
+
+  const elapsed = Math.max(0, (pzNow() - PZ.track.startedAt) / 1000);
+  if (elapsed >= PZ.track.sec) { pzAdvance(); return; }   /* 곡이 끝나면 다음 곡으로 */
+
+  const sec = Math.floor(elapsed);
+  if (sec === PZ.lastSec) return;                        /* 1초에 한 번만 DOM 을 건드린다 */
+  PZ.lastSec = sec;
+
+  $('#pz-title').textContent = PZ.track.title;
+  $('#pz-mood').textContent = PZ.track.mood;
+  $('#pz-elapsed').textContent = pzTime(sec);
+  $('#pz-total').textContent = pzTime(PZ.track.sec);
+  $('#pz-bar').style.width = ((sec / PZ.track.sec) * 100).toFixed(2) + '%';
+
+  /* 오디오가 계산 위치에서 많이 벗어나면 맞춘다 (탭 정지·버퍼링 등) */
+  const a = pzSound();
+  if (a && !a.paused && Math.abs(a.currentTime - elapsed) > 1.5) {
+    try { a.currentTime = elapsed; } catch {}
+  }
+}
+
+function pzRenderNow() {
+  $('#plaza-now').hidden = !PZ.track;
+  if (PZ.track) $('#plaza-now-title').textContent = PZ.track.title;
+}
+
+function pzOpenDJ() {
+  PZ.keys.clear();                       /* 모달을 여는 순간 이동을 멈춘다 */
+  pzRenderTracks();
+  $('#overlay-dj').hidden = false;
+  Sound.play('click');
+}
+function pzCloseDJ() { $('#overlay-dj').hidden = true; }
+
+function pzPickTrack(id) {
+  const tr = PZ_TRACKS.find((x) => x.id === id);
+  if (!tr) return;
+  PZ.track = { ...tr, startedAt: pzNow() };
+  PZ.lastSec = -1;
+  pzAudioPlay(tr, 0);
+  pzRenderNow(); pzRenderTracks(); pzRenderPlayer(); pzCloseDJ();
+  Sound.play('join');
+  toast(`${tr.title} — 틀었습니다`);
+}
+
+function pzStopTrack() {
+  PZ.track = null;
+  pzAudioStop();
+  pzRenderNow(); pzRenderTracks(); pzRenderPlayer(); pzCloseDJ();
+  Sound.play('click');
+  toast('음악을 껐습니다');
+}
+
+$('#dj-list').onclick = (e) => {
+  const b = e.target.closest('[data-track]');
+  if (b) pzPickTrack(b.dataset.track);
+};
+$('#btn-dj-off').onclick = pzStopTrack;
+if ($('#pz-vol-range')) {
+  $('#pz-vol-range').oninput = (e) => pzSetVol(e.target.value);
+  pzRenderVol();
+}
+
+/* ---------- 말풍선 · 채팅 ---------- */
+const pzBubbleTimers = new Map();
+
+function pzBubble(p, text) {
+  const el = PZ.els.get(p.id); if (!el) return;
+  el.bubble.textContent = text;
+  el.bubble.classList.add('on');
+  clearTimeout(pzBubbleTimers.get(p.id));
+  pzBubbleTimers.set(p.id, setTimeout(() => el.bubble.classList.remove('on'), PZ_BUBBLE_MS));
+}
+
+function pzRenderChat() {
+  const log = $('#plaza-chat-log');
+  log.innerHTML = PZ.chat.map((m) => (m.me
+    ? `<li class="me"><span class="chat-bubble">${esc(m.text)}</span></li>`
+    : `<li>
+        <span class="chat-who" style="background:${m.color}">${m.emoji}</span>
+        <span class="chat-col"><b>${esc(m.name)}</b>
+          <span class="chat-bubble">${esc(m.text)}</span></span>
+      </li>`)).join('');
+  log.scrollTop = log.scrollHeight;
+}
+
+function pzPush(p, text) {
+  PZ.chat.push({ name: p.name, emoji: p.emoji, color: p.color, text, me: !!p.me });
+  if (PZ.chat.length > PZ_CHAT_KEEP) PZ.chat = PZ.chat.slice(-PZ_CHAT_KEEP);
+  pzBubble(p, text);
+  pzRenderChat();
+}
+
+function pzSend() {
+  const input = $('#plaza-chat-text');
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  pzPush(PZ.me, text);
+  Sound.play('click');
+}
+
+/* 봇이 가끔 말을 건다 */
+function pzBotTalk() {
+  const others = PZ.people.filter((p) => !p.me);
+  if (others.length) {
+    const p = others[Math.floor(Math.random() * others.length)];
+    pzPush(p, PZ_TALK[Math.floor(Math.random() * PZ_TALK.length)]);
+  }
+  PZ.botTimer = setTimeout(pzBotTalk, pzRand(7000, 16000));
+}
+
+/* 다른 사람들도 가끔 표정을 낸다 */
+function pzBotEmote() {
+  const others = PZ.people.filter((p) => !p.me);
+  if (others.length) {
+    const p = others[Math.floor(Math.random() * others.length)];
+    const marks = Object.values(PZ_EMOTES);
+    pzEmote(p, marks[Math.floor(Math.random() * marks.length)]);
+  }
+  PZ.emoteTimer = setTimeout(pzBotEmote, pzRand(5000, 12000));
+}
+
+/* ---------- 시작 / 종료 ---------- */
+function startPlaza() {
+  if (PZ.on) return;
+  if (!PZ.me) pzSeed();
+  PZ.me.name = profile.nick;               /* 프로필이 바뀌었을 수 있다 */
+  PZ.on = true; PZ.last = performance.now(); PZ.keys.clear();
+  PZ.near = null;                        /* 첫 프레임에서 반드시 한 번 판정하도록 */
+  PZ.riding = null; PZ.tod = null; PZ.clock = null; PZ.seats = {};
+  PZ.people.forEach((p) => { p.riding = null; p.seat = null; p.goal = null; });
+  pzUpdateTod(); pzUpdateClock();
+  PZ.lastSec = -1;
+  pzBuild(); pzRenderChat(); pzRenderNow(); pzRenderPlayer();
+  PZ.raf = requestAnimationFrame(pzTick);
+  clearTimeout(PZ.botTimer); clearTimeout(PZ.emoteTimer);
+  PZ.botTimer = setTimeout(pzBotTalk, pzRand(3000, 6000));
+  PZ.emoteTimer = setTimeout(pzBotEmote, pzRand(2500, 5000));
+  clearTimeout(PZ.seesawTimer);
+  PZ.seesawTimer = setTimeout(pzSeesawTick, pzRand(2000, 4000));
+}
+
+function stopPlaza() {
+  if (!PZ.on) return;
+  PZ.on = false;
+  if (PZ.raf) cancelAnimationFrame(PZ.raf);
+  PZ.raf = null;
+  clearTimeout(PZ.botTimer); PZ.botTimer = null;
+  clearTimeout(PZ.emoteTimer); PZ.emoteTimer = null;
+  clearTimeout(PZ.seesawTimer); PZ.seesawTimer = null;
+  pzAudioStop();
+  pzBubbleTimers.forEach((t) => clearTimeout(t)); pzBubbleTimers.clear();
+  pzEmoteTimers.forEach((t) => clearTimeout(t)); pzEmoteTimers.clear();
+  PZ.keys.clear();
+  pzCloseDJ();
+  PZ.riding = null;
+  PZ.near = null; $('#plaza-cue').hidden = true;
+}
+
+/* 프로필(이름·아바타)이 바뀌면 놀이터에 서 있는 내 캐릭터에도 반영한다.
+   놀이터에 들어와 있지 않으면 아무 일도 하지 않는다 */
+function pzSyncMe() {
+  if (!PZ.me) return;
+  PZ.me.name = profile.nick;
+  PZ.me.emoji = profile.emoji;
+  const el = PZ.els.get(PZ.me.id);
+  if (el && el.name) el.name.textContent = profile.nick;
+}
+
+function openPlaza() { startPlaza(); show('plaza'); }
+
+/* ---------- 입력 ---------- */
+const PZ_KEYS = {
+  ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down',
+  a: 'left', d: 'right', w: 'up', s: 'down',
+  A: 'left', D: 'right', W: 'up', S: 'down',
+};
+
+document.addEventListener('keydown', (e) => {
+  if (!PZ.on) return;
+  /* 입력칸에서 난 키는 여기서 처리하지 않는다.
+     activeElement 대신 e.target 을 보는 이유: 전송하면서 포커스를 빼면
+     버블링이 올라올 때 activeElement 가 이미 바뀌어 Enter 가 다시 잡힌다 */
+  if (e.target === $('#plaza-chat-text')) return;
+
+  const dj = $('#overlay-dj');
+  if (!dj.hidden) {                        /* 곡 선택 중에는 캐릭터가 움직이지 않는다 */
+    if (e.key === 'Escape') { pzCloseDJ(); e.preventDefault(); }
+    return;
+  }
+
+  if (e.key === ' ' || e.code === 'Space') {
+    if (PZ.riding) { e.preventDefault(); pzDismount(); return; }
+    const spot = pzNearSpot();
+    if (!spot) return;                     /* 아무 지점에서도 멀면 그냥 무시 */
+    e.preventDefault();
+    if (spot.kind === 'dj') pzOpenDJ();
+    else pzRide(spot);
+    return;
+  }
+
+  if (PZ_EMOTES[e.key]) {                  /* 숫자키로 표정 */
+    e.preventDefault();
+    pzEmote(PZ.me, PZ_EMOTES[e.key]);
+    return;
+  }
+
+  if (e.key === 'Enter') {                 /* Enter 로 채팅 열기 */
+    PZ.keys.clear();                       /* 누르고 있던 방향키를 놓은 것으로 */
+    $('#plaza-chat-text').focus();
+    e.preventDefault();
+    return;
+  }
+  const dir = PZ_KEYS[e.key];
+  if (dir) { PZ.keys.add(dir); e.preventDefault(); }
+});
+document.addEventListener('keyup', (e) => {
+  const dir = PZ_KEYS[e.key];
+  if (dir) PZ.keys.delete(dir);
+});
+window.addEventListener('blur', () => PZ.keys.clear());
+
+$('#btn-plaza-back').onclick = () => {
+  stopPlaza(); renderPlayground(); show('playground'); Sound.play('click');
+};
+/* ---------- 채팅 글자 크기 ---------- */
+const PZ_FONTS = [12, 13, 15, 17, 19];
+const PZ_FONT_KEY = SAVE_KEY + '.pzfont';
+let pzFont = 2;                          /* 기본 15px */
+try {
+  /* 저장값이 없으면 null 인데 Number(null) 은 0 이라 그냥 쓰면 최소 크기로 시작한다 */
+  const raw = localStorage.getItem(PZ_FONT_KEY);
+  const v = raw === null ? NaN : Number(raw);
+  if (Number.isInteger(v) && v >= 0 && v < PZ_FONTS.length) pzFont = v;
+} catch {}
+
+function pzApplyFont() {
+  const px = PZ_FONTS[pzFont];
+  $('.pz-chat').style.setProperty('--pz-chat-fs', px + 'px');
+  $('#pz-font-label').textContent = px;
+  $('#btn-pz-font-down').disabled = pzFont === 0;
+  $('#btn-pz-font-up').disabled = pzFont === PZ_FONTS.length - 1;
+  try { localStorage.setItem(PZ_FONT_KEY, pzFont); } catch {}
+}
+
+function pzFontStep(d) {
+  const next = pzFont + d;
+  if (next < 0 || next >= PZ_FONTS.length) return;
+  pzFont = next;
+  pzApplyFont();
+  Sound.play('click');
+  const log = $('#plaza-chat-log');
+  log.scrollTop = log.scrollHeight;        /* 커지면 아래가 잘리므로 다시 맨 아래로 */
+}
+
+$('#btn-pz-font-down').onclick = () => pzFontStep(-1);
+$('#btn-pz-font-up').onclick = () => pzFontStep(1);
+pzApplyFont();
+
+$('#btn-plaza-chat-send').onclick = pzSend;
+$('#plaza-chat-text').onkeydown = (e) => {
+  if (isComposing(e)) return;                /* 한글 조합 중 Enter 는 확정용 */
+  if (e.key === 'Enter') {
+    pzSend();
+    /* 보내고 나면 포커스를 빼서 바로 방향키로 움직일 수 있게 한다.
+       여기 머물면 이동 키가 전부 입력칸으로 들어가 캐릭터가 멈춰 버린다 */
+    $('#plaza-chat-text').blur();
+  }
+  if (e.key === 'Escape') $('#plaza-chat-text').blur();
+};
