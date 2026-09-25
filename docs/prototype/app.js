@@ -745,8 +745,8 @@ let createMode = 'solo';
 let createMax = 6;
 let createSecret = false;
 
-/* 개인전은 2~6명, 팀전은 팀당 2명이라 4·6·8명만 딱 떨어진다 */
-const maxChoices = () => (createMode === 'team' ? [4, 6, 8] : [2, 3, 4, 5, 6]);
+/* 개인전은 2~6명, 팀전은 팀 인원이 같아야 해서 짝수만 고를 수 있다 (2 = 1대1) */
+const maxChoices = () => (createMode === 'team' ? [2, 4, 6, 8] : [2, 3, 4, 5, 6]);
 
 function renderMaxChoices() {
   $('#create-max').innerHTML = maxChoices()
@@ -1026,7 +1026,7 @@ function renderRoster() {
 /* ---------- 채팅 ---------- */
 const GREETINGS = ['안녕하세요~', '반갑습니다', '한 판 해요', '오 사람 있다', '기다리고 있었어요', '드가자'];
 const BUBBLE_MS = 4000;
-const CHAT_KEEP = 50;
+/* 채팅은 방이 살아 있는 동안 전부 남긴다 — 개수를 자르지 않는다 */
 
 function renderChat() {
   const log = $('#chat-log');
@@ -1059,7 +1059,6 @@ function pushChat(p, text) {
     name: p.name, emoji: p.emoji, text, me: p.id === G.meId,
     color: G.mode === 'team' && p.team ? teamOf(p.team).color : colorHex(p.color),
   });
-  if (G.chat.length > CHAT_KEEP) G.chat = G.chat.slice(-CHAT_KEEP);
   showBubble(p, text);
   renderChat();
 }
@@ -1107,12 +1106,14 @@ function startCheck() {
   if (G.players.some((p) => !p.team)) return { ok: false, msg: '모든 참여자가 팀에 속해야 합니다' };
   if (used.length < 2) return { ok: false, msg: '팀전은 2팀부터 시작할 수 있습니다' };
   if (used.length > 4) return { ok: false, msg: '팀은 최대 4팀입니다' };
-  /* 2-2-1 처럼 인원이 어긋난 채로는 시작할 수 없다 — 모든 팀이 정확히 2명 */
+  /* 2-2-1 처럼 인원이 어긋난 채로는 시작할 수 없다.
+     팀당 2명까지, 그리고 모든 팀의 인원이 같아야 한다 (1대1 팀전도 허용) */
   const size = (t) => G.players.filter((p) => p.team === t).length;
-  const odd = used.filter((t) => size(t) !== 2);
-  if (odd.length) {
-    const detail = odd.map((t) => `${teamOf(t).name} ${size(t)}명`).join(' · ');
-    return { ok: false, msg: `팀마다 2명씩이어야 합니다 (${detail})` };
+  const sizes = used.map(size);
+  if (sizes.some((n) => n > 2)) return { ok: false, msg: '팀당 인원은 2명까지입니다' };
+  if (new Set(sizes).size > 1) {
+    const detail = used.map((t) => `${teamOf(t).name} ${size(t)}명`).join(' · ');
+    return { ok: false, msg: `팀마다 인원이 같아야 합니다 (${detail})` };
   }
   return { ok: true };
 }
