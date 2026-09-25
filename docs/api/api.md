@@ -199,7 +199,7 @@ Cookie: sessionKey=s_9f3a…
 }
 ```
 
-방 안에 있는 동안 바꿔도 **그 방의 표시 이름은 그대로다.** 참여자 이름은 입장 시점 스냅샷이기 때문이다 ([ERD의 `room_players`](../erd/erd.md#room_players-방-참여자-1-4)). 접속자 목록(1-13)에는 즉시 반영된다.
+방 안에 있는 동안 바꿔도 **그 방의 표시 이름은 그대로다.** 참여자 이름은 입장 시점 스냅샷이기 때문이다 ([ERD의 `room_players`](../erd/omt.md#room_players-방-참여자-1-4)). 접속자 목록(1-13)에는 즉시 반영된다.
 
 ---
 
@@ -658,7 +658,7 @@ REST의 `success`/`data` 봉투는 쓰지 않는다. 소켓은 요청·응답이
 
 | 필드 | 설명 |
 | --- | --- |
-| phase | `idle` `rolling` `rolled` `digging` `moved` `bust` `wait` ([ERD 부록 B](../erd/erd.md#부록-b-phase-값)) |
+| phase | `idle` `rolling` `rolled` `digging` `moved` `bust` `wait` ([ERD 부록 B](../erd/omt.md#부록-b-phase-값)) |
 | phaseDeadlineAt | 이 단계가 끝나는 **시각**. 남은 초가 아니다. 제한 없는 단계는 `null` |
 | turn | 지금 차례인 사람과 사이드. `playerId == meId`일 때만 조작 버튼을 보여준다 (5-1) |
 | dice | 마지막으로 굴린 4개. 굴리기 전이면 `null` |
@@ -873,6 +873,6 @@ STOMP의 장점은 이 프로젝트에서 **하나도 발동하지 않는다.** 
 | --- | --- |
 | 액세스·리프레시 토큰 | 로그인이 없다. 세션 쿠키가 전부다 |
 | 재접속 복구 | 새로고침하면 방에서 나간다 (0-4) |
-| 전적 조회 | 계정이 없어 누구의 전적인지 묶을 수 없다 ([ERD 부록 E](../erd/erd.md#부록-e-확장-여지)) |
+| 전적 조회 | 계정이 없어 누구의 전적인지 묶을 수 없다 ([ERD 부록 B](../erd/erd.md#부록-b-확장-여지)) |
 | 방 목록 소켓 푸시 | 폴링으로 정했다 (M-4) |
 | 페이지 크기 조절 | 6개 고정 (1-2) |

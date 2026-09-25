@@ -1965,7 +1965,7 @@ const PZ = {
   me: null, people: [], els: new Map(), keys: new Set(), chat: [],
   track: null, near: null, lastSec: -1,
   spot: null, riding: null, tod: null, clock: null,
-  seats: {}, seesawTimer: null,
+  seats: {}, seesawTimer: null, chatSlot: null,
 };
 
 const pzRand = (a, b) => a + Math.random() * (b - a);
@@ -2087,6 +2087,7 @@ function pzTick(now) {
   pzRenderPlayer();
   pzUpdateTod();
   pzUpdateClock();
+  pzCheckChatReset();
   PZ.raf = requestAnimationFrame(pzTick);
 }
 
@@ -2405,9 +2406,26 @@ function pzBubble(p, text) {
   pzBubbleTimers.set(p.id, setTimeout(() => el.bubble.classList.remove('on'), PZ_BUBBLE_MS));
 }
 
+/* 광장은 사라지지 않아 대화가 무한히 쌓인다. 10분 경계(:00 :10 … :50)마다 비운다.
+   벽시계 기준이라 서버가 알려주지 않아도 전원이 같은 시점에 비워진다 */
+const PZ_CHAT_RESET_MIN = 10;
+const pzChatSlot = (d) => Math.floor((d.getHours() * 60 + d.getMinutes()) / PZ_CHAT_RESET_MIN);
+
+function pzCheckChatReset(now = new Date()) {
+  const slot = pzChatSlot(now);
+  if (PZ.chatSlot === null) { PZ.chatSlot = slot; return false; }
+  if (slot === PZ.chatSlot) return false;
+  PZ.chatSlot = slot;
+  PZ.chat = [{ sys: true, text: `${PZ_CHAT_RESET_MIN}분마다 대화가 비워집니다` }];
+  pzRenderChat();
+  return true;
+}
+
 function pzRenderChat() {
   const log = $('#plaza-chat-log');
-  log.innerHTML = PZ.chat.map((m) => (m.me
+  log.innerHTML = PZ.chat.map((m) => (m.sys
+    ? `<li class="sys">${esc(m.text)}</li>`
+    : m.me
     ? `<li class="me"><span class="chat-bubble">${esc(m.text)}</span></li>`
     : `<li>
         <span class="chat-who" style="background:${m.color}">${m.emoji}</span>
@@ -2462,6 +2480,7 @@ function startPlaza() {
   PZ.on = true; PZ.last = performance.now(); PZ.keys.clear();
   PZ.near = null;                        /* 첫 프레임에서 반드시 한 번 판정하도록 */
   PZ.riding = null; PZ.tod = null; PZ.clock = null; PZ.seats = {};
+  PZ.chatSlot = pzChatSlot(new Date());
   PZ.people.forEach((p) => { p.riding = null; p.seat = null; p.goal = null; });
   pzUpdateTod(); pzUpdateClock();
   PZ.lastSec = -1;
