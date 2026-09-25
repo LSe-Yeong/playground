@@ -1,0 +1,475 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>한번더 (OneMoreTime) — 프로토타입</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="stylesheet" as="style" crossorigin
+      href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<link rel="stylesheet" href="style.css">
+<!-- 주사위 3D 렌더링 (없으면 CSS 주사위로 자동 대체) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+
+<!-- 모든 화면 뒤에 깔리는 놀이터 풍경 (땅은 화면 끝까지 닿도록 viewBox 밖으로 넓게 그린다) -->
+<div class="pg-scene">
+  <svg viewBox="0 0 560 130" preserveAspectRatio="xMidYMax meet" aria-hidden="true">
+    <rect x="-1400" y="94" width="3360" height="130" fill="#63c62f" stroke="#20303a" stroke-width="4"/>
+
+    <g stroke="#20303a" stroke-width="4">
+      <rect x="34" y="66" width="11" height="30" fill="#c58f4d"/>
+      <circle cx="39.5" cy="56" r="22" fill="#4aa81f"/>
+    </g>
+
+    <g fill="none" stroke-linecap="round">
+      <path d="M150 94V44M168 94V44" stroke="#20303a" stroke-width="11"/>
+      <path d="M150 94V44M168 94V44" stroke="#2d9cdb" stroke-width="6"/>
+      <path d="M150 58h18M150 72h18M150 86h18" stroke="#20303a" stroke-width="7"/>
+      <path d="M150 58h18M150 72h18M150 86h18" stroke="#2d9cdb" stroke-width="3"/>
+      <path d="M168 44C188 50 196 74 218 94" stroke="#20303a" stroke-width="18"/>
+      <path d="M168 44C188 50 196 74 218 94" stroke="#f0553d" stroke-width="13"/>
+      <path d="M168 44C188 50 196 74 218 94" stroke="#ffcf33" stroke-width="5"/>
+    </g>
+
+    <g fill="none" stroke-linecap="round">
+      <path d="M360 94L382 40M436 94L414 40M380 40h36" stroke="#20303a" stroke-width="12"/>
+      <path d="M360 94L382 40M436 94L414 40M380 40h36" stroke="#2d9cdb" stroke-width="7"/>
+      <path d="M390 42v26M408 42v26" stroke="#20303a" stroke-width="4"/>
+      <rect x="383" y="68" width="32" height="9" rx="4" fill="#f0553d" stroke="#20303a" stroke-width="4"/>
+    </g>
+
+    <g stroke="#20303a" stroke-width="4">
+      <circle cx="280" cy="97" r="13" fill="#4aa81f"/>
+      <circle cx="296" cy="100" r="9" fill="#4aa81f"/>
+      <circle cx="512" cy="95" r="16" fill="#4aa81f"/>
+      <circle cx="493" cy="100" r="10" fill="#4aa81f"/>
+    </g>
+
+    <g stroke="#20303a" stroke-width="3" stroke-linecap="round">
+      <path d="M96 106l-3-9M102 106l3-9M250 108l-3-9M334 106l3-9M470 108l-3-9"/>
+    </g>
+  </svg>
+</div>
+
+<div id="app">
+
+  <!-- ============ 놀이터 (메인) ============ -->
+  <section class="screen active" id="screen-playground">
+    <header class="pg-top">
+      <span class="pg-logo">🛝</span>
+      <div class="pg-titles">
+        <h1>놀이터</h1>
+        <p>playground</p>
+      </div>
+      <div class="profile" id="pg-profile"></div>
+    </header>
+
+    <div class="pg-body">
+      <div class="track" id="game-track"></div>
+      <div class="pg-ctrl">
+        <button class="btn icon" id="btn-prev" title="이전 게임">‹</button>
+        <div class="dots" id="game-dots"></div>
+        <button class="btn icon" id="btn-next" title="다음 게임">›</button>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- ============ 한번더 — 홈 ============ -->
+  <section class="screen" id="screen-home">
+    <header class="topbar">
+      <button class="btn icon" id="btn-to-playground" title="놀이터로">←</button>
+      <span class="topbar-title">한번더</span>
+      <div class="profile" id="home-profile"></div>
+    </header>
+    <div class="home-wrap">
+      <div class="home-grid">
+
+        <aside class="home-side">
+          <button class="btn warn big hidden" id="btn-resume" data-spec="0-4">이어서 하기</button>
+
+          <section class="online-block">
+            <div class="online-head">
+              <strong>접속 중</strong>
+              <span class="online-count" id="online-count"></span>
+            </div>
+            <ul class="online-list" id="online-list"></ul>
+          </section>
+
+          <div class="home-actions">
+            <button class="btn primary big" id="btn-create" data-spec="1-1">방 만들기</button>
+            <a class="btn ghost big" data-spec="4-1"
+               href="https://www.youtube.com/watch?v=DnAfchV-dYo" target="_blank" rel="noopener">규칙 보기</a>
+          </div>
+        </aside>
+
+        <section class="home-main">
+          <div class="room-head">
+            <button class="btn tiny" id="btn-refresh-rooms">새로고침</button>
+          </div>
+          <ul class="room-list" id="room-list"></ul>
+          <div class="room-pager" id="room-pager">
+            <button class="btn icon" id="btn-room-prev" title="이전 페이지">‹</button>
+            <span class="room-page-label" id="room-page-label">1 / 1</span>
+            <button class="btn icon" id="btn-room-next" title="다음 페이지">›</button>
+          </div>
+          <p class="proto-note">프로토타입 · 서버 없이 한 기기에서 번갈아 플레이합니다</p>
+        </section>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 대기실 ============ -->
+  <section class="screen" id="screen-lobby">
+    <header class="topbar">
+      <button class="btn icon" id="btn-leave-room" data-spec="1-12" title="나가기">←</button>
+      <div class="room-head-box">
+        <span class="room-title-line"><b id="room-title">—</b><span id="room-lock"></span></span>
+      </div>
+      <span class="topbar-spacer"></span>
+    </header>
+
+    <div class="lobby-body">
+      <div class="stage-wrap">
+        <div class="room-scene" aria-hidden="true">
+          <div class="wall wall-l"></div>
+          <div class="wall wall-r"></div>
+          <div class="wall-corner"></div>
+          <div class="floor"></div>
+          <div class="rug"></div>
+
+          <div class="window">
+            <div class="window-sky"></div>
+            <div class="window-bar v"></div>
+            <div class="window-bar h"></div>
+            <div class="window-sill"></div>
+          </div>
+
+          <div class="clock">
+            <i class="hand hour"></i>
+            <i class="hand min"></i>
+            <i class="pin"></i>
+          </div>
+
+          <div class="plant">
+            <svg viewBox="0 0 60 80" aria-hidden="true">
+              <g fill="none" stroke="#4aa81f" stroke-width="4" stroke-linecap="round">
+                <path d="M30 56V30"/><path d="M30 38c-10-2-15-9-16-18 9 0 15 6 16 14z"/>
+                <path d="M30 44c10-2 15-9 16-18-9 0-15 6-16 14z"/>
+              </g>
+              <path d="M17 56h26l-4 22H21z" fill="#c9914f"/>
+            </svg>
+          </div>
+
+          <div class="shelf">
+            <i class="book" style="background:#f0553d"></i>
+            <i class="book tall" style="background:#2d9cdb"></i>
+            <i class="book" style="background:#ffcf33"></i>
+            <i class="book tall" style="background:#5bc236"></i>
+            <i class="book" style="background:#9b6bdb"></i>
+          </div>
+
+          <div class="lamp-glow"></div>
+        </div>
+        <div class="stage" id="stage"></div>
+        <div class="stage-ui">
+          <div class="roster" id="roster"></div>
+          <div class="stage-tools">
+            <button class="btn icon" id="btn-room-color" title="내 색상"><i class="color-dot" id="my-color-dot"></i></button>
+          </div>
+          <div class="stage-actions" id="stage-actions"></div>
+
+          <div class="proto-tools">
+            <button class="btn tiny proto-btn" id="btn-add-bot">+ 참여자</button>
+            <button class="btn tiny proto-btn hidden" id="btn-claim-host">방장 되기</button>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- ============ 게임 ============ -->
+  <section class="screen" id="screen-game">
+    <header class="game-top">
+      <div class="score-strip" id="score-strip" data-spec="2-2"></div>
+      <span class="turn-sub" id="turn-sub"></span>
+      <div class="game-top-right">
+        <button class="btn icon danger" id="btn-leave-game" data-spec="2-11" title="나가기">⏻</button>
+      </div>
+      <div class="timer" data-spec="5-3"><i id="timer-bar"></i></div>
+    </header>
+
+    <div class="board-wrap">
+      <div class="board" id="board" data-spec="2-1"></div>
+      <canvas class="dice-canvas" id="dice-canvas"></canvas>
+      <div class="dice-fly" id="dice-fly" data-spec="2-3"></div>
+      <div class="options" id="options" data-spec="2-4"></div>
+    </div>
+
+    <div class="game-fabs">
+      <button class="btn primary fab" id="btn-roll" hidden>
+        <span class="roll-icon">🎲</span><span id="roll-label">굴리기</span>
+      </button>
+      <button class="btn ghost fab" id="btn-stop" data-spec="2-8" hidden>멈추기</button>
+    </div>
+
+    <div class="turn-banner" id="turn-banner" data-spec="2-2" hidden>
+      <span class="turn-banner-team" id="turn-banner-team"></span>
+      <strong class="turn-banner-name" id="turn-banner-name">—</strong>
+      <span class="turn-banner-sub">차례입니다</span>
+    </div>
+
+    <div class="fx-bust" id="fx-bust" data-spec="2-6"><span>붕괴!</span><small>이번 턴 진행이 모두 사라졌다</small></div>
+  </section>
+
+  <!-- ============ 결과 ============ -->
+  <section class="screen" id="screen-result">
+    <div class="result-wrap">
+      <div class="result-hero" data-spec="3-1">
+        <div class="treasure">💎</div>
+        <p class="result-label">보물 3개 발견</p>
+        <h2 id="winner-name">—</h2>
+        <p class="result-sub" id="winner-sub"></p>
+      </div>
+
+      <section class="block" data-spec="3-2">
+        <h2 class="block-title">게임 통계</h2>
+        <div class="stat-table" id="stat-table"></div>
+      </section>
+
+      <div class="result-foot">
+        <button class="btn ghost big" id="btn-home" data-spec="3-4">홈으로</button>
+        <button class="btn primary big" id="btn-again" data-spec="3-3">다시 하기</button>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+</div>
+
+<!-- ============ 내 색상 ============ -->
+<div class="overlay" id="overlay-color" hidden>
+  <div class="overlay-box narrow">
+    <header class="overlay-top">
+      <h2 id="color-title">내 색상</h2>
+      <button class="btn icon" data-close-overlay>✕</button>
+    </header>
+    <div class="swatches" id="my-colors"></div>
+    <p class="hint" id="color-hint">다른 참여자가 쓰는 색은 고를 수 없습니다</p>
+  </div>
+</div>
+
+<!-- ============ 방 설정 ============ -->
+<div class="overlay" id="overlay-room" hidden>
+  <div class="overlay-box">
+    <header class="overlay-top">
+      <h2>방 설정</h2>
+      <button class="btn icon" data-close-overlay>✕</button>
+    </header>
+      <section class="block" data-spec="1-5">
+        <h2 class="block-title">게임 모드</h2>
+        <div class="segment" id="mode-seg">
+          <button data-mode="solo" class="on">개인전</button>
+          <button data-mode="team">팀전</button>
+        </div>
+        <p class="hint" id="mode-hint">개인전 2~6명</p>
+      </section>
+
+      <section class="block" data-spec="1-6" id="team-block" hidden>
+        <h2 class="block-title">팀 배정 <span class="sub">팀당 1~2명 · 최대 4팀</span></h2>
+        <div class="team-grid" id="team-grid"></div>
+      </section>
+
+      <section class="block" data-spec="1-4">
+        <h2 class="block-title">참여자 <span class="sub" id="player-count"></span></h2>
+        <ul class="player-list" id="player-list"></ul>
+      </section>
+
+  </div>
+</div>
+
+<!-- ============ 방 만들기 ============ -->
+<div class="overlay" id="overlay-create" hidden>
+  <div class="overlay-box narrow">
+    <header class="overlay-top">
+      <h2>방 만들기</h2>
+      <button class="btn icon" id="create-close">✕</button>
+    </header>
+
+    <label class="field">
+      <span>방 제목</span>
+      <input id="create-title" maxlength="20" placeholder="20자 이내" autocomplete="off">
+    </label>
+
+    <div class="field" data-spec="1-5">
+      <span>게임 모드</span>
+      <div class="segment" id="create-mode">
+        <button data-mode="solo" class="on">개인전</button>
+        <button data-mode="team">팀전</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <span>최대 인원</span>
+      <div class="segment small wrap" id="create-max"></div>
+    </div>
+
+    <div class="set-row">
+      <span>비밀방</span>
+      <button class="toggle" id="create-secret"><i></i></button>
+    </div>
+
+    <label class="field hidden" id="create-pw-field">
+      <span>비밀번호</span>
+      <input id="create-pw" maxlength="12" placeholder="12자 이내" autocomplete="off">
+    </label>
+
+    <div class="sheet-foot">
+      <button class="btn ghost" id="create-cancel">취소</button>
+      <button class="btn primary" id="create-ok">만들기</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 비밀방 비밀번호 ============ -->
+<div class="overlay" id="overlay-pw" hidden>
+  <div class="overlay-box narrow">
+    <header class="overlay-top">
+      <h2>🔒 비밀방</h2>
+      <button class="btn icon" id="pw-close">✕</button>
+    </header>
+    <label class="field">
+      <span>비밀번호</span>
+      <input id="pw-input" maxlength="12" placeholder="비밀번호 입력" autocomplete="off">
+    </label>
+    <div class="sheet-foot">
+      <button class="btn ghost" id="pw-cancel">취소</button>
+      <button class="btn primary" id="pw-ok">입장</button>
+    </div>
+    <p class="proto-note">프로토타입 · 모의 방의 비밀번호는 1234 입니다</p>
+  </div>
+</div>
+
+<!-- ============ 프로필 사진 선택 ============ -->
+<div class="overlay" id="overlay-avatar" hidden>
+  <div class="overlay-box narrow">
+    <header class="overlay-top">
+      <h2>프로필 사진</h2>
+      <button class="btn icon" data-close-overlay>✕</button>
+    </header>
+    <div class="avatar-grid" id="avatar-grid"></div>
+  </div>
+</div>
+
+<!-- ============ 닉네임 설정 모달 ============ -->
+<div class="overlay" id="overlay-nick" hidden>
+  <div class="overlay-box narrow">
+    <header class="overlay-top">
+      <h2 id="nick-title">닉네임 설정</h2>
+      <button class="btn icon" id="nick-close">✕</button>
+    </header>
+    <p class="dlg-msg" id="nick-sub"></p>
+    <label class="field">
+      <span>닉네임</span>
+      <span class="nick-row">
+        <input id="nick-input" maxlength="12" placeholder="12자 이내" autocomplete="off">
+        <button class="nick-shuffle" id="nick-random" title="랜덤 이름" aria-label="랜덤 이름">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M16 3h5v5"/><path d="M4 20 21 3"/><path d="M21 16v5h-5"/><path d="M15 15l6 6"/><path d="M4 4l5 5"/>
+          </svg>
+        </button>
+      </span>
+    </label>
+    <div class="sheet-foot">
+      <button class="btn ghost" id="nick-cancel">취소</button>
+      <button class="btn primary" id="nick-ok">확인</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 규칙 오버레이 ============ -->
+<div class="overlay" id="overlay-rules" hidden>
+  <div class="overlay-box narrow">
+    <header class="overlay-top">
+      <h2>게임 규칙</h2>
+      <button class="btn icon" data-close-overlay>✕</button>
+    </header>
+    <div class="rtrack" id="rule-track"></div>
+    <div class="pg-ctrl">
+      <button class="btn icon" id="btn-rule-prev" title="이전">‹</button>
+      <div class="dots" id="rule-dots"></div>
+      <button class="btn icon" id="btn-rule-next" title="다음">›</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 설정 오버레이 ============ -->
+<div class="overlay" id="overlay-settings" hidden>
+  <div class="overlay-box narrow">
+    <header class="overlay-top">
+      <h2>설정</h2>
+      <button class="btn icon" data-close-overlay>✕</button>
+    </header>
+    <div class="settings">
+      <div class="set-row" data-spec="4-2">
+        <span>사운드</span>
+        <button class="toggle" id="set-sound"><i></i></button>
+      </div>
+      <div class="set-row" data-spec="4-3">
+        <span>애니메이션 속도</span>
+        <div class="segment small" id="set-speed">
+          <button data-speed="normal" class="on">보통</button>
+          <button data-speed="fast">빠름</button>
+        </div>
+      </div>
+      <div class="set-row" data-spec="5-3">
+        <span>턴 제한 시간</span>
+        <button class="toggle" id="set-timer"><i></i></button>
+      </div>
+      <div class="set-row">
+        <span>명세 번호 표시 <em class="proto-inline">프로토타입</em></span>
+        <button class="toggle" id="set-spec"><i></i></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 확인 다이얼로그 ============ -->
+<div class="overlay" id="dialog" hidden>
+  <div class="overlay-box narrow">
+    <h2 id="dlg-title">확인</h2>
+    <p id="dlg-msg" class="dlg-msg"></p>
+    <div class="sheet-foot">
+      <button class="btn ghost" id="dlg-no">취소</button>
+      <button class="btn danger" id="dlg-yes">확인</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- 대기실과 게임 화면이 함께 쓰는 채팅 -->
+<button class="btn icon chat-fab" id="btn-chat" title="채팅">💬</button>
+<div class="chat-panel" id="chat-panel" hidden>
+  <div class="chat-head">
+    <strong>채팅</strong>
+    <button class="btn tiny" id="btn-chat-close">닫기</button>
+  </div>
+  <ul class="chat-log" id="chat-log"></ul>
+  <div class="chat-input">
+    <input id="chat-text" maxlength="60" placeholder="메시지 입력" autocomplete="off">
+    <button class="btn primary" id="btn-chat-send">전송</button>
+  </div>
+</div>
+
+<div class="toast-area" id="toast-area" data-spec="0-2"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
