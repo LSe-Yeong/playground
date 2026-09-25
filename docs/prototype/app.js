@@ -113,6 +113,11 @@ const RULES = [
 
 const ART_SOON = '<img src="image/coming-soon.webp" alt="준비 중" loading="lazy" decoding="async">';
 
+/* 놀이터 정원. 카드에 현재 인원을 보여주려면 놀이터 밖에서도 알아야 해서
+   PZ 보다 앞에 둔다 (서버가 생기면 이 값이 서버에서 온다) */
+const PZ_MAX = 20;
+let plazaCount = 6 + Math.floor(Math.random() * 7);
+
 /* 놀이터에 올라가는 게임 목록 — 게임을 추가하려면 여기에 한 줄 추가한다.
    art 는 카드 상단 그림: <img> 나 인라인 <svg> 를 넣고, 없으면 icon 이 크게 표시된다. */
 const GAMES = [
@@ -144,7 +149,7 @@ const GAMES = [
     </svg>`,
     desc: '캐릭터를 움직이며 다른 사람들과 이야기하는 공간. 게임이 아니라 그냥 모이는 곳이다',
     tags: ['소통', '자유 이동', '채팅'],
-    players: '제한 없음', time: '자유' },
+    players: () => `${plazaCount} / ${PZ_MAX}명`, time: '자유' },
   { id: 'onemore', name: '한번더', en: 'OneMoreTime', icon: '⛏', tone: '#f0553d', ready: true,
     art: '<img src="image/omt-thumb.webp" alt="한번더 썸네일" loading="lazy" decoding="async">',
     desc: '주사위 4개로 11개의 갱도를 파내려가, 가장 깊은 곳의 보물 3개를 먼저 찾는 사람이 이긴다',
@@ -424,7 +429,7 @@ function renderPlayground() {
         <div class="gcard-title"><b>${esc(g.name)}</b><span class="gcard-en">${g.en}</span>${badge}</div>
         <p class="gcard-desc">${esc(g.desc)}</p>
         ${g.tags?.length ? `<div class="gcard-tags">${g.tags.map((t) => `<span class="tag">#${esc(t)}</span>`).join('')}</div>` : ''}
-        <div class="gcard-meta"><span>👥 ${g.players}</span><span>⏱ ${g.time}</span></div>
+        <div class="gcard-meta"><span>👥 ${typeof g.players === 'function' ? g.players() : g.players}</span><span>⏱ ${g.time}</span></div>
         <button class="btn ${g.ready ? 'primary' : ''} big" data-game="${g.id}" ${g.ready ? '' : 'disabled'}>
           ${g.cta || (g.ready ? '플레이' : '준비 중')}
         </button>
@@ -443,7 +448,10 @@ function renderPlayground() {
 $('#game-track').onclick = (e) => {
   const b = e.target.closest('[data-game]'); if (!b || b.disabled) return;
   Sound.play('click');
-  if (b.dataset.game === 'plaza') { openPlaza(); return; }
+  if (b.dataset.game === 'plaza') {
+    if (plazaCount >= PZ_MAX) { toast(`놀이터 정원(${PZ_MAX}명)이 찼습니다`, 'bad'); return; }
+    openPlaza(); return;
+  }
   refreshHome();
   show('home');
 };
@@ -1975,7 +1983,7 @@ function pzMakePerson(name, emoji, color, me = false) {
 
 /* 접속해 있는 사람들 — 서버가 없으므로 모의 데이터 */
 function pzSeed() {
-  const pool = shuffle([...BOT_NAMES]).slice(0, 5 + Math.floor(Math.random() * 3));
+  const pool = shuffle([...BOT_NAMES]).slice(0, Math.min(PZ_MAX - 1, 5 + Math.floor(Math.random() * 3)));
   const cols = shuffle([...COLORS]);
   PZ.me = pzMakePerson(profile.nick, profile.emoji, colorHex(cols[0].id), true);
   PZ.people = [PZ.me, ...pool.map((n, i) =>
@@ -2010,7 +2018,7 @@ function pzBuild() {
     }];
   }));
   PZ.people.forEach(pzApply);
-  $('#plaza-count').textContent = `${PZ.people.length}명`;
+  $('#plaza-count').textContent = `${PZ.people.length} / ${PZ_MAX}명`;
 }
 
 function pzApply(p) {
@@ -2458,6 +2466,7 @@ function startPlaza() {
   pzUpdateTod(); pzUpdateClock();
   PZ.lastSec = -1;
   pzBuild(); pzRenderChat(); pzRenderNow(); pzRenderPlayer();
+  plazaCount = PZ.people.length;           /* 카드에 보일 인원 */
   PZ.raf = requestAnimationFrame(pzTick);
   clearTimeout(PZ.botTimer); clearTimeout(PZ.emoteTimer);
   PZ.botTimer = setTimeout(pzBotTalk, pzRand(3000, 6000));
@@ -2478,6 +2487,7 @@ function stopPlaza() {
   pzBubbleTimers.forEach((t) => clearTimeout(t)); pzBubbleTimers.clear();
   pzEmoteTimers.forEach((t) => clearTimeout(t)); pzEmoteTimers.clear();
   PZ.keys.clear();
+  plazaCount = Math.max(0, PZ.people.length - 1);   /* 내가 나갔으므로 한 명 줄어든다 */
   pzCloseDJ();
   PZ.riding = null;
   PZ.near = null; $('#plaza-cue').hidden = true;
