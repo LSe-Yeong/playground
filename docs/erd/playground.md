@@ -76,9 +76,9 @@ erDiagram
 | --- | --- | --- | --- |
 | id | bigint | PK | 식별자 |
 | session_id | bigint | FK(SESSIONS), UK, NOT NULL | 접속 세션. **한 사람은 한 번만 들어간다** |
-| nickname | varchar(20) | NOT NULL | 입장 시점 이름 스냅샷 |
-| avatar | varchar(8) | NOT NULL | 입장 시점 아바타 스냅샷 |
-| color_code | varchar(10) | NOT NULL | 캐릭터 색 |
+| nickname | varchar(20) | NOT NULL | 현재 이름. 입장 때 세션에서 복사하고, **프로필을 바꾸면 함께 갱신한다** (M-P13) |
+| avatar | varchar(8) | NOT NULL | 현재 아바타. 갱신 규칙은 `nickname` 과 같다 |
+| color_code | varchar(10) | UK, NOT NULL | 캐릭터 색. [부록 E](#부록-e-캐릭터-색) 24색 중 하나. **한 색은 한 사람만** (P-24) |
 | pos_x | decimal(5,2) | NOT NULL | 가로 위치(%). `6.00` ~ `94.00` |
 | pos_y | decimal(5,2) | NOT NULL | 세로 위치(%). `56.00` ~ `94.00` |
 | facing | smallint | NOT NULL, DEFAULT 0 | 바라보는 쪽. `-1` 왼쪽 / `0` 정면 / `1` 오른쪽 |
@@ -90,6 +90,12 @@ erDiagram
 - UK(`riding_spot`, `riding_seat`) WHERE `riding_spot` IS NOT NULL — **한 자리에 두 명이 앉을 수 없다**
 - 정원 20명은 행 수로 막는다. DB 제약으로 표현할 수 없으므로 서버가 센다
 - 소켓이 끊기면 행을 삭제한다. 재접속 복구가 없으므로(0-4) 남길 이유가 없다
+
+#### 이름·아바타를 세션과 맞춰 갱신한다 (M-P13)
+
+한번더의 `room_players` 는 입장 시점 값에 고정하지만, 광장은 **프로필 변경(`PATCH /sessions/me`)을 즉시 따라간다.** 세션을 join 하지 않고 복사해 두는 것은 같다 — 브로드캐스트·스냅샷을 만들 때 세션을 다시 찾지 않기 위해서다. 대신 프로필이 바뀌면 서버가 이 행도 같이 고친다.
+
+채팅(`plaza_chat`)은 **작성 시점 스냅샷을 유지한다.** 이미 보낸 글의 이름까지 바꾸면 대화 중 누가 무슨 말을 했는지가 흐려진다.
 
 #### 좌표를 왜 소수점까지 두는가
 
@@ -144,6 +150,10 @@ erDiagram
 
 곡이 끝났는지도 이 값으로 판단한다. 오디오의 종료 신호에 기대면 음원 로딩이 실패했을 때 그 곡에 영원히 멈춘다.
 
+#### 광장이 비면 끈다 (P-25)
+
+마지막 사람이 나가면 `track_id` · `started_at` · `changed_by` 를 모두 NULL로 두고 **곡 타이머를 취소한다.** 들을 사람이 없는데 곡을 넘기는 타이머가 계속 도는 것을 막는다.
+
 ---
 
 ## 4. 부록
@@ -191,6 +201,8 @@ erDiagram
 | --- | --- | --- |
 | E-P1 | 광장 채팅을 언제 비울지 | **10분 경계마다 전부 비운다** (`:00 :10 … :50`). 개수 기준이 아니라 시각 기준이다 |
 | E-P2 | 정원이 찼을 때 | **입장을 거절한다.** 광장을 여러 개로 늘리지 않는다 |
+| E-P3 | 광장이 비었을 때 음악 | **끈다.** 곡 타이머도 취소한다 (P-25) |
+| E-P4 | 캐릭터 색 | **24색, 중복 불가.** `plaza_members.color_code` 에 UK를 건다 (P-24) |
 
 남은 미정 사항은 없다.
 
@@ -202,3 +214,17 @@ erDiagram
 | DJ 권한 | `plaza_music` 에 `dj_member_id` 를 두고, 그 사람만 곡을 바꿀 수 있게 한다. 지금은 누구나 바꾼다 (M-P5) |
 | 곡 신청 목록 | `plaza_queue` 를 추가하고 `plaza_music` 이 그 순서를 따른다 |
 | 기구 이용 기록 | 계정이 없어 누구의 기록인지 묶을 수 없다. **로그인이 먼저** 필요하다 |
+
+### 부록 E: 캐릭터 색
+
+**테이블이 아니라 코드 상수다.** 놀이기구 지점과 같은 이유다. 순서가 곧 색 선택 모달의 표시 순서이고, 10개씩 한 페이지다 (P-24).
+
+| 페이지 | 색 코드 |
+| --- | --- |
+| 1 | `red` `blue` `green` `yellow` `purple` `pink` `teal` `orange` `navy` `mint` |
+| 2 | `coral` `lime` `sky` `indigo` `violet` `rose` `brown` `olive` `gold` `cyan` |
+| 3 | `beige` `gray` `black` `white` |
+
+- 앞의 8색은 한번더(`room_players.color_code`)와 같은 값이다
+- 색 수(24)가 정원(20)보다 많아야 한다. **정원을 늘리면 색도 함께 늘린다**
+- 실제 색상값(hex)은 클라이언트가 코드별로 갖는다. 서버는 코드만 검증한다

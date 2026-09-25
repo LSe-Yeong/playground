@@ -98,6 +98,7 @@ flowchart LR
 | — | 상태 보관 | **단일 인스턴스 + 서버 메모리.** Redis는 쓰지 않는다 ([ERD](../erd/erd.md)) |
 | — | 실시간 전송 | **원시 WebSocket.** STOMP는 쓰지 않는다 ([API](../api/api.md)) |
 | M-H2 | 카드 목록을 어디서 관리할지 | **DB 테이블.** [ERD](../erd/erd.md)의 `games` · `game_tags`를 그대로 쓴다 |
+| M-H3 | 정리되지 않는 세션 | **TTL 스위퍼로 지운다.** 소켓 미연결 60초 · 신호 없음 90초 ([ERD](../erd/erd.md#세션-ttl-스위퍼)) |
 
 ## 5. 남은 미정 사항
 

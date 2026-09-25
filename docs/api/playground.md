@@ -50,7 +50,7 @@
 
 **Response `200`:** [`PlazaState`](#plazastate)
 
-입장에 성공하면 **광장 안의 다른 사람들에게 소켓으로 `plaza.joined`가 나간다.** 캐릭터는 걷는 범위 안 임의의 위치에 서고, 색은 남은 색 중 하나가 배정된다.
+입장에 성공하면 **광장 안의 다른 사람들에게 소켓으로 `plaza.joined`가 나간다.** 캐릭터는 걷는 범위 안 임의의 위치에 서고, 색은 **남이 쓰지 않는 색 중 하나**가 자동 배정된다. 바꾸려면 소켓으로 `plaza.color`를 보낸다 (P-24).
 
 **Errors:**
 
@@ -76,6 +76,7 @@
 | P-12 | `plaza.ride` | `{ "spot": "swing" }` | 기구 타기. **자리는 서버가 고른다** |
 | P-12 | `plaza.dismount` | `{}` | 내리기 |
 | P-6 | `plaza.chat` | `{ "body": "안녕하세요~" }` | 채팅 (최대 60자). 보낸 사람은 담지 않는다 |
+| P-24 | `plaza.color` | `{ "color": "mint" }` | 캐릭터 색 변경. 남이 쓰는 색이면 거절 |
 | P-15 | `plaza.music.pick` | `{ "trackId": 2 }` | 곡 선택. **DJ 부스 근처여야 한다** |
 | P-15 | `plaza.music.stop` | `{}` | 음악 끄기 |
 | P-1 | `plaza.leave` | `{}` | 나가기 |
@@ -93,6 +94,8 @@
 | P-10 | `plaza.emote` | 표정을 냈을 때 | `{ "memberId": 7, "slot": 1 }` |
 | P-12 | `plaza.ride` | 기구에 앉았을 때 | `{ "memberId": 7, "spot": "swing", "seat": 0 }` |
 | P-12 | `plaza.dismount` | 기구에서 내렸을 때 | `{ "memberId": 7, "spot": "swing", "x": 16, "y": 68 }` |
+| 0-7 | `plaza.profile` | 광장 안의 누가 프로필을 바꿨을 때 | `{ "memberId": 7, "nickname": "곡괭이1007", "avatar": "⛏" }` — 본인 포함 전원 |
+| P-24 | `plaza.color` | 누가 색을 바꿨을 때 | `{ "memberId": 7, "color": "mint" }` — 본인 포함 전원 |
 | P-6 | `plaza.chat` | 채팅이 올 때 | [`ChatMessage`](api.md#chatmessage) 한 건 |
 | P-23 | `plaza.chatReset` | 10분 경계 | `{ "at": "2026-09-25T10:20:00Z" }` — 목록을 비우고 안내 한 줄을 남긴다 |
 | P-15~18 | `plaza.music` | 곡이 바뀌거나 꺼졌을 때 | [`PlazaMusic`](#plazamusic) 또는 `null` |
@@ -177,7 +180,8 @@
       "at":       "2026-09-25T10:01:02Z"
     }
   ],
-  "chatResetAt": "2026-09-25T10:20:00Z"
+  "chatResetAt": "2026-09-25T10:20:00Z",
+  "colors": ["red", "blue", "green", "yellow", "purple", "pink", "teal", "orange", "navy", "mint", "…"]
 }
 ```
 
@@ -190,6 +194,7 @@
 | tracks | 고를 수 있는 곡 목록. **`srcUrl`은 지금 나오는 곡에만 싣는다** — 나머지는 고를 때 받아도 늦지 않다 |
 | chat | 지금 10분 구간에 쌓인 대화 |
 | chatResetAt | **다음 초기화 시각.** 클라이언트가 남은 시간을 보여줄 수 있다 (P-23) |
+| colors | 고를 수 있는 **24색 전체**, 모달 표시 순서대로 (P-24). 클라이언트가 10개씩 끊어 페이지를 만든다. 남이 쓰는 색은 `members[].color`로 알 수 있으므로 따로 싣지 않는다 |
 
 ### PlazaMember
 
@@ -198,15 +203,15 @@
 | 필드 | 타입 | 설명 |
 | --- | --- | --- |
 | id | number | 광장 안에서의 식별자 |
-| nickname | string | 입장 시점 이름 스냅샷 |
-| avatar | string | 입장 시점 아바타 스냅샷 |
-| color | string | 캐릭터 색 |
+| nickname | string | 현재 이름. 프로필을 바꾸면 따라간다 |
+| avatar | string | 현재 아바타. 프로필을 바꾸면 따라간다 |
+| color | string | 캐릭터 색. **광장 안에서 바꿀 수 있다** (`plaza.color`) |
 | x | number | 가로 위치(%). `6` ~ `94` |
 | y | number | 세로 위치(%). `56` ~ `94` |
 | dir | number | `-1` 왼쪽 / `0` 정면 / `1` 오른쪽 |
 | riding | object \| null | `{ spot, seat }` 또는 타고 있지 않으면 `null` |
 
-프로필을 바꿔도 **이미 들어와 있는 사람들에게 보이는 이름은 그대로다.** 이름·아바타가 입장 시점 스냅샷이기 때문이다.
+광장 안에서 프로필(`PATCH /sessions/me`)을 바꾸면 **즉시 반영된다.** 서버가 광장 전원에게 `plaza.profile`을 보낸다 (M-P13). 이미 보낸 채팅([`ChatMessage`](api.md#chatmessage))은 작성 시점 이름을 그대로 둔다.
 
 ### PlazaMusic
 
@@ -302,6 +307,8 @@ sequenceDiagram
 | `409` | `SPOT_FULL` | 자리가 없습니다 | `plaza.ride` |
 | `409` | `ALREADY_RIDING` | 이미 기구에 타고 있습니다 | `plaza.ride` |
 | `404` | `TRACK_NOT_FOUND` | 없는 곡입니다 | `plaza.music.pick` |
+| `400` | `INVALID_COLOR` | 고를 수 없는 색입니다 | `plaza.color` |
+| `409` | `COLOR_TAKEN` | 다른 사람이 쓰는 색입니다 | `plaza.color` |
 
 `OUT_OF_BOUNDS`는 **좌표를 되돌려 주는 편이 낫다.** 거절만 하면 클라이언트가 어디로 돌아가야 할지 모른다. 거절과 함께 `plaza.moves`로 서버가 아는 마지막 좌표를 보낸다.
 
@@ -332,6 +339,9 @@ sequenceDiagram
 | P-21 | 낮과 밤 | 클라이언트 전용 |
 | P-22 | 정원 | `POST /plaza/enter` · `GET /games` 의 `liveCount` |
 | P-23 | 채팅 초기화 | `plaza.chatReset` · `PlazaState.chatResetAt` |
+| P-24 | 캐릭터 색 | `plaza.color` · `PlazaState.colors` |
+| 0-7 | 광장 안 프로필 변경 | `PATCH /sessions/me` → `plaza.profile` |
+| P-25 | 빈 광장 음악 정지 | 서버 내부 처리 (다음 입장자는 `music: null`) |
 
 ### 부록 C: 구현 전 확인할 것
 
@@ -341,7 +351,8 @@ sequenceDiagram
 | 자리 경합 | 두 사람이 같은 순간에 같은 기구를 노린다. 자리 배정은 **한 번에 하나씩** 처리해야 한다 |
 | 음악 타이머 | 곡마다 타이머가 돈다. 곡이 바뀌면 이전 타이머를 반드시 취소한다 |
 | 채팅 초기화 타이머 | 10분 경계는 서버가 한 번만 재고, 결과를 전원에게 보낸다 |
-| 빈 광장 | 사람이 없어도 광장은 사라지지 않는다. **음악과 타이머를 멈출지** 정해야 한다 |
+| 빈 광장 | 사람이 없어도 광장은 사라지지 않는다. 마지막 사람이 나가면 **음악을 끄고 곡 타이머를 취소한다** (P-25). 채팅 초기화 타이머는 그대로 둔다 |
+| 색 경합 | 두 사람이 같은 순간에 같은 색을 고른다. 자리 배정과 같이 **한 번에 하나씩** 처리한다 |
 
 ### 부록 D: 이번 범위에 없는 것
 
