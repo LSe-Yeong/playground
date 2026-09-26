@@ -24,7 +24,7 @@ export function ColorOverlay({ current, taken, onPick, onClose }: Props) {
 
   return (
     <Overlay title="캐릭터 색" onClose={onClose}>
-      <div className="swatches">
+      <div className="pz-swatches">
         {shown.map((color) => {
           const isTaken = color.id !== current && taken.includes(color.id)
           return (

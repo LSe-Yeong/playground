@@ -380,6 +380,16 @@
   display: block; width: 20px; height: 20px; border-radius: 50%;
   box-shadow: inset 0 0 0 2px rgba(255,255,255,.85), 0 1px 3px rgba(32,48,58,.35);
 }
+/* 한 페이지 10개를 2행 5열에 고정한다. 폭에 맡기면 창 크기마다 줄 수가 달라지고,
+   마지막 페이지(4개)에서 모달 높이가 줄어 버튼이 위로 튄다 */
+.pz-swatches {
+  display: grid;
+  grid-template-columns: repeat(5, 40px);
+  grid-template-rows: repeat(2, 40px);
+  justify-content: center;
+  gap: 10px;
+}
+
 /* 24색을 10개씩 끊어 보여주므로 페이지 이동이 필요하다 */
 .pz-color-pager {
   display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 14px;
