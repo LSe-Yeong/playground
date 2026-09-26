@@ -1,122 +1,120 @@
 import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import './App.css'
+import { AvatarOverlay } from './components/AvatarOverlay'
+import { BackgroundScene } from './components/BackgroundScene'
+import { NicknameOverlay } from './components/NicknameOverlay'
+import { HubScreen } from './features/hub/HubScreen'
+import { ColorOverlay } from './features/plaza/ColorOverlay'
+import { DjOverlay } from './features/plaza/DjOverlay'
+import { PZ_CAPACITY } from './features/plaza/constants'
+import { PlazaScreen } from './features/plaza/PlazaScreen'
+import type { PlazaTrack } from './features/plaza/types'
+import {
+  MOCK_CHAT, MOCK_ELAPSED_SEC, MOCK_MEMBERS, MOCK_NOW_PLAYING, MOCK_TRACKS,
+} from './mock/plaza'
+import { randomNickname, type Profile } from './profile'
 
-function App() {
-  const [count, setCount] = useState(0)
+type ScreenName = 'hub' | 'plaza'
+type OverlayName = 'avatar' | 'nickname' | 'dj' | 'color'
+
+/**
+ * 화면만 먼저 만든 단계다. 서버 연결·캐릭터 이동·음원 재생은 아직 붙이지 않았고,
+ * 화면에 보이는 값은 src/mock 에서 온다.
+ */
+export default function App() {
+  const [screen, setScreen] = useState<ScreenName>('hub')
+  const [overlay, setOverlay] = useState<OverlayName | null>(null)
+  const [profile, setProfile] = useState<Profile>({ nickname: randomNickname(), avatar: '⛏' })
+
+  const [members, setMembers] = useState(MOCK_MEMBERS)
+  const [nowPlaying, setNowPlaying] = useState<PlazaTrack | null>(MOCK_NOW_PLAYING)
+
+  const me = members.find((member) => member.me)
+  const takenColors = members.filter((member) => !member.me).map((member) => member.colorId)
+
+  const closeOverlay = () => setOverlay(null)
 
   return (
     <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+      <BackgroundScene />
 
-      <div className="ticks"></div>
+      <div id="app">
+        <HubScreen
+          active={screen === 'hub'}
+          profile={profile}
+          plazaCount={members.length}
+          plazaCapacity={PZ_CAPACITY}
+          onEnter={(gameId) => gameId === 'plaza' && setScreen('plaza')}
+          onEditNickname={() => setOverlay('nickname')}
+          onEditAvatar={() => setOverlay('avatar')}
+        />
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+        <PlazaScreen
+          active={screen === 'plaza'}
+          profile={profile}
+          members={members}
+          chat={MOCK_CHAT}
+          nowPlaying={nowPlaying}
+          elapsedSec={MOCK_ELAPSED_SEC}
+          nearSpotId="dj"
+          onLeave={() => setScreen('hub')}
+          onOpenDj={() => setOverlay('dj')}
+          onOpenColor={() => setOverlay('color')}
+          onEditNickname={() => setOverlay('nickname')}
+          onEditAvatar={() => setOverlay('avatar')}
+        />
+      </div>
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
+      {overlay === 'avatar' && (
+        <AvatarOverlay
+          current={profile.avatar}
+          onPick={(avatar) => {
+            setProfile({ ...profile, avatar })
+            closeOverlay()
+          }}
+          onClose={closeOverlay}
+        />
+      )}
+
+      {overlay === 'nickname' && (
+        <NicknameOverlay
+          current={profile.nickname}
+          onSave={(nickname) => {
+            setProfile({ ...profile, nickname })
+            closeOverlay()
+          }}
+          onClose={closeOverlay}
+        />
+      )}
+
+      {overlay === 'dj' && (
+        <DjOverlay
+          tracks={MOCK_TRACKS}
+          current={nowPlaying}
+          onPick={(trackId) => {
+            setNowPlaying(MOCK_TRACKS.find((track) => track.trackId === trackId) ?? null)
+            closeOverlay()
+          }}
+          onStop={() => {
+            setNowPlaying(null)
+            closeOverlay()
+          }}
+          onClose={closeOverlay}
+        />
+      )}
+
+      {overlay === 'color' && me && (
+        <ColorOverlay
+          current={me.colorId}
+          taken={takenColors}
+          onPick={(colorId) => {
+            setMembers(members.map((m) => (m.me ? { ...m, colorId } : m)))
+            closeOverlay()
+          }}
+          onClose={closeOverlay}
+        />
+      )}
+
+      <div className="toast-area" />
     </>
   )
 }
-
-export default App
