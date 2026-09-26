@@ -4,6 +4,7 @@ import com.seyeong.playgroundback.global.config.PlaygroundProperties;
 import com.seyeong.playgroundback.global.websocket.SocketSessionRegistry;
 import com.seyeong.playgroundback.session.domain.Session;
 import com.seyeong.playgroundback.session.domain.SessionClosedEvent;
+import com.seyeong.playgroundback.session.domain.SessionProfileChangedEvent;
 import com.seyeong.playgroundback.session.repository.SessionRepository;
 import java.time.Clock;
 import java.time.Instant;
@@ -34,7 +35,7 @@ public class SessionCommandService {
             Optional<Session> found = sessionRepository.findBySessionKey(sessionKey);
             if (found.isPresent()) {
                 Session session = found.get();
-                session.updateProfile(nickname, avatar);
+                updateProfile(session, nickname, avatar);
                 return new SessionIssue(session, false);
             }
         }
@@ -52,8 +53,10 @@ public class SessionCommandService {
         return sessionRepository.save(session);
     }
 
+    /** 광장에 있는 사람이면 이름·아바타가 그 자리에서 함께 바뀐다 (M-P13). */
     public Session updateProfile(Session session, String nickname, String avatar) {
         session.updateProfile(nickname, avatar);
+        eventPublisher.publishEvent(SessionProfileChangedEvent.from(session));
         return session;
     }
 
