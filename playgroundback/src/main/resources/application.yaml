@@ -21,6 +21,8 @@ server:
   shutdown: graceful
 
 playground:
+  allowed-origins:
+    - https://playground.app
   session:
     cookie-name: sessionKey
     cookie-secure: true
@@ -31,5 +33,3 @@ playground:
     ping-interval: 30s
     send-time-limit: 10s
     buffer-size-limit: 512KB
-    allowed-origins:
-      - https://playground.app

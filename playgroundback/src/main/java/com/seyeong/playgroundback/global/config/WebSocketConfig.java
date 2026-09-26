@@ -24,6 +24,6 @@ public class WebSocketConfig implements WebSocketConfigurer {
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
         registry.addHandler(playgroundWebSocketHandler, WEBSOCKET_PATH)
                 .addInterceptors(sessionCookieHandshakeInterceptor)
-                .setAllowedOriginPatterns(properties.websocket().allowedOrigins().toArray(String[]::new));
+                .setAllowedOriginPatterns(properties.allowedOrigins().toArray(String[]::new));
     }
 }

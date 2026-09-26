@@ -52,10 +52,11 @@ class SessionCommandServiceTest {
     @BeforeEach
     void setUp() {
         PlaygroundProperties properties = new PlaygroundProperties(
+                List.of("http://localhost:*"),
                 new PlaygroundProperties.Session("sessionKey", true,
                         Duration.ofSeconds(60), Duration.ofSeconds(90), Duration.ofSeconds(30)),
                 new PlaygroundProperties.WebSocket(Duration.ofSeconds(30), Duration.ofSeconds(10),
-                        DataSize.ofKilobytes(512), List.of())
+                        DataSize.ofKilobytes(512))
         );
         sessionCommandService = new SessionCommandService(sessionRepository, sessionKeyGenerator,
                 socketSessionRegistry, eventPublisher, properties, Clock.fixed(NOW, ZoneOffset.UTC));

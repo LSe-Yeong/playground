@@ -5,8 +5,12 @@ import java.util.List;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.util.unit.DataSize;
 
+/**
+ * @param allowedOrigins 프론트가 있는 곳. REST 의 CORS 와 소켓 핸드셰이크가 같은 목록을 쓴다.
+ *                       쿠키를 주고받으므로 {@code *} 는 쓸 수 없고 패턴으로 적는다
+ */
 @ConfigurationProperties("playground")
-public record PlaygroundProperties(Session session, WebSocket websocket) {
+public record PlaygroundProperties(List<String> allowedOrigins, Session session, WebSocket websocket) {
 
     /**
      * @param connectTimeout   발급 후 이 시간 안에 소켓이 붙지 않으면 세션을 지운다
@@ -30,8 +34,7 @@ public record PlaygroundProperties(Session session, WebSocket websocket) {
     public record WebSocket(
             Duration pingInterval,
             Duration sendTimeLimit,
-            DataSize bufferSizeLimit,
-            List<String> allowedOrigins
+            DataSize bufferSizeLimit
     ) {
     }
 }

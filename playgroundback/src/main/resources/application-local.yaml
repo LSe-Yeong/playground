@@ -17,8 +17,9 @@ spring:
     show-sql: true
 
 playground:
+  # 개발 중에는 Vite(5173) 등 포트가 바뀌므로 패턴으로 받는다
+  allowed-origins:
+    - http://localhost:*
+    - http://127.0.0.1:*
   session:
     cookie-secure: false
-  websocket:
-    allowed-origins:
-      - http://localhost:*

@@ -2,6 +2,8 @@ package com.seyeong.playgroundback.game.controller;
 
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -36,6 +38,34 @@ class GameControllerTest {
 
     @MockitoBean
     private SessionReadService sessionReadService;
+
+    @Test
+    @DisplayName("허용된 출처의 사전 요청에는 쿠키를 허용하는 CORS 헤더를 내려준다")
+    void corsPreflightFromAllowedOrigin() throws Exception {
+        mockMvc.perform(options(CONTEXT_PATH + "/games").contextPath(CONTEXT_PATH)
+                        .header("Origin", "http://localhost:5173")
+                        .header("Access-Control-Request-Method", "GET"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Access-Control-Allow-Origin", "http://localhost:5173"))
+                .andExpect(header().string("Access-Control-Allow-Credentials", "true"));
+    }
+
+    @Test
+    @DisplayName("허용되지 않은 출처는 CORS 로 막는다")
+    void corsPreflightFromForeignOrigin() throws Exception {
+        mockMvc.perform(options(CONTEXT_PATH + "/games").contextPath(CONTEXT_PATH)
+                        .header("Origin", "https://evil.example")
+                        .header("Access-Control-Request-Method", "GET"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("쿠키를 쓰므로 출처에 와일드카드를 내려주지 않는다")
+    void corsNeverReturnsWildcardOrigin() throws Exception {
+        mockMvc.perform(get(CONTEXT_PATH + "/games").contextPath(CONTEXT_PATH)
+                        .header("Origin", "http://localhost:5173"))
+                .andExpect(header().string("Access-Control-Allow-Origin", "http://localhost:5173"));
+    }
 
     @Test
     @DisplayName("카드 목록을 정렬된 순서로 조회한다")
