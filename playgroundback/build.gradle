@@ -2,7 +2,6 @@ plugins {
 	id 'java'
 	id 'org.springframework.boot' version '4.1.1'
 	id 'io.spring.dependency-management' version '1.1.7'
-	id 'org.asciidoctor.jvm.convert' version '4.0.4'
 }
 
 group = 'com.seyeong'
@@ -14,21 +13,8 @@ java {
 	}
 }
 
-configurations {
-	asciidoctorExt
-}
-
-// spring-restdocs-asciidoctor 4.x 는 AsciidoctorJ 3 기준이다. 플러그인 기본값(2.x)을 쓰면 문서 생성이 실패한다.
-asciidoctorj {
-	version = '3.0.0'
-}
-
 repositories {
 	mavenCentral()
-}
-
-ext {
-	snippetsDir = file('build/generated-snippets')
 }
 
 dependencies {
@@ -44,29 +30,11 @@ dependencies {
 	annotationProcessor 'org.projectlombok:lombok'
 	testImplementation 'org.springframework.boot:spring-boot-starter-data-jpa-test'
 	testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
-	testImplementation 'org.springframework.boot:spring-boot-restdocs'
-	testImplementation 'org.springframework.restdocs:spring-restdocs-mockmvc'
 	testCompileOnly 'org.projectlombok:lombok'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 	testAnnotationProcessor 'org.projectlombok:lombok'
-	asciidoctorExt 'org.springframework.restdocs:spring-restdocs-asciidoctor'
 }
 
 tasks.named('test') {
-	outputs.dir snippetsDir
 	useJUnitPlatform()
-}
-
-tasks.named('asciidoctor') {
-	inputs.dir snippetsDir
-	configurations 'asciidoctorExt'
-	baseDirFollowsSourceFile()
-	dependsOn tasks.named('test')
-}
-
-tasks.named('bootJar') {
-	dependsOn tasks.named('asciidoctor')
-	from(tasks.named('asciidoctor')) {
-		into 'static/docs'
-	}
 }
