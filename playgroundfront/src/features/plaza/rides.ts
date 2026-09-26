@@ -1,7 +1,6 @@
 import { findSpot } from './constants'
 import type { PlazaMember } from './plazaReducer'
-import type { RideState } from './PlazaProps'
-import type { RideSpot } from './types'
+import type { RideSpot, RideState } from './types'
 
 /**
  * 기구마다 몇 명이 탔는지 세어 기구와 사람의 움직임을 정한다 (P-14).
@@ -30,3 +29,11 @@ export function rideSummary(members: PlazaMember[]) {
   }
   return { rigs, soloSpots }
 }
+
+/**
+ * riding 과 solo 는 함께 붙이지 않는다. riding 은 기구를 계속 움직이게 하고
+ * solo 는 그 자리에 기운 채 멈추게 하는데, 둘 다 있으면 riding 이 이겨
+ * 혼자 탄 시소가 움직인다 (P-14).
+ */
+export const rigClass = (ride: RideState = 'idle') =>
+  ride === 'idle' ? 'pz-prop' : `pz-prop ${ride}`

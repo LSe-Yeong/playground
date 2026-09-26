@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { PlazaMember } from './plazaReducer'
-import { rideSummary } from './rides'
+import { rideSummary, rigClass } from './rides'
 import type { RideSpot } from './types'
 
 const rider = (id: number, spot: RideSpot, seat: number): PlazaMember => ({
@@ -34,5 +34,21 @@ describe('기구 움직임', () => {
 
   it('아무도 안 탄 기구는 목록에 없다', () => {
     expect(rideSummary([stander(1)]).rigs).toEqual({})
+  })
+})
+
+describe('기구에 붙는 클래스', () => {
+  it('혼자 탔을 때는 riding 을 붙이지 않는다 — 붙으면 시소가 혼자서도 움직인다', () => {
+    expect(rigClass('solo-0')).toBe('pz-prop solo-0')
+    expect(rigClass('solo-1')).toBe('pz-prop solo-1')
+  })
+
+  it('인원이 차면 riding 만 붙는다', () => {
+    expect(rigClass('riding')).toBe('pz-prop riding')
+  })
+
+  it('아무도 안 탔으면 아무것도 붙지 않는다', () => {
+    expect(rigClass()).toBe('pz-prop')
+    expect(rigClass('idle')).toBe('pz-prop')
   })
 })

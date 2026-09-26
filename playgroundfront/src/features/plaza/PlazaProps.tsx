@@ -1,5 +1,6 @@
 import type { CSSProperties } from 'react'
-import type { RideSpot } from './types'
+import { rigClass } from './rides'
+import type { RideSpot, RideState } from './types'
 
 /**
  * 광장의 놀이기구와 장식. 프로토타입 index.html 의 .pz-prop 아홉 개를 그대로 옮겼다.
@@ -7,8 +8,6 @@ import type { RideSpot } from './types'
  * 좌표·너비·깊이는 인라인 커스텀 속성으로 준다. 기구는 캐릭터와 같은 기준(y)으로
  * z-index 를 받아야 앞뒤로 지나갈 수 있어, CSS 클래스가 아니라 값으로 넘긴다.
  */
-export type RideState = 'idle' | 'riding' | 'solo-0' | 'solo-1'
-
 interface Props {
   /** 지금 나오는 곡 제목. 없으면 DJ 부스 위 표지가 뜨지 않는다 */
   nowPlaying?: string | null
@@ -19,14 +18,11 @@ interface Props {
 const propStyle = (x: number, y: number, w: number, z: number) =>
   ({ '--x': `${x}%`, '--y': `${y}%`, '--w': `${w}%`, '--z': z }) as CSSProperties
 
-const propClass = (ride: RideState = 'idle') =>
-  ride === 'idle' ? 'pz-prop' : `pz-prop ${ride.startsWith('solo') ? `riding ${ride}` : ride}`
-
 export function PlazaProps({ nowPlaying = null, rides = {} }: Props) {
   return (
     <>
       {/* 그네 */}
-      <div className={propClass(rides.swing)} id="prop-swing" style={propStyle(16, 66, 17, 660)}>
+      <div className={rigClass(rides.swing)} id="prop-swing" style={propStyle(16, 66, 17, 660)}>
         <svg viewBox="0 0 210 150">
           <g stroke="#2a9db2" strokeWidth="8" strokeLinecap="round" fill="none">
             <path d="M52 32 22 140M52 32l24 108M178 32l-30 108M178 32l24 108"/>
@@ -62,7 +58,7 @@ export function PlazaProps({ nowPlaying = null, rides = {} }: Props) {
       </div>
 
       {/* 시소 */}
-      <div className={propClass(rides.seesaw)} id="prop-seesaw" style={propStyle(64, 74, 13, 740)}>
+      <div className={rigClass(rides.seesaw)} id="prop-seesaw" style={propStyle(64, 74, 13, 740)}>
         <svg viewBox="0 0 200 90">
           <path d="M84 76h32l-16-30z" fill="#e8503f"/>
           <g className="ss-plank">
@@ -91,7 +87,7 @@ export function PlazaProps({ nowPlaying = null, rides = {} }: Props) {
       </div>
 
       {/* 회전무대 */}
-      <div className={propClass(rides.merry)} id="prop-merry" style={propStyle(9, 88, 10, 880)}>
+      <div className={rigClass(rides.merry)} id="prop-merry" style={propStyle(9, 88, 10, 880)}>
         <svg viewBox="0 0 150 130">
           <path d="M12 52v42a63 20 0 0 0 126 0V52z" fill="#c93d2d"/>
           <ellipse cx="75" cy="94" rx="63" ry="20" fill="#e8503f"/>
