@@ -1,25 +1,31 @@
 import { useRef, useState } from 'react'
+import type { GameResponse } from '../../api/types'
+import { useConnection } from '../../app/connectionContext'
 import { ProfileChip } from '../../components/ProfileChip'
-import type { Profile } from '../../profile'
-import { GAMES } from './games'
+import { lookOf } from './games'
 import { PlazaCardArt } from './PlazaCardArt'
+import { useGames } from './useGames'
 import './hub.css'
 
 interface Props {
   active: boolean
-  profile: Profile
-  /** 놀이터 카드에 띄울 현재 인원 (P-4). 서버가 붙으면 GET /games 의 liveCount 다 */
-  plazaCount: number
-  plazaCapacity: number
-  onEnter: (gameId: string) => void
+  onEnter: (gameCode: string) => void
   onEditNickname: () => void
   onEditAvatar: () => void
 }
 
+/** 인원을 셀 수 있는 카드는 지금 몇 명인지, 아니면 정원을 보여준다 */
+function playersLabel(game: GameResponse) {
+  if (game.liveCount !== null && game.capacity !== null) {
+    return `${game.liveCount} / ${game.capacity}명`
+  }
+  return game.maxPlayers > 0 ? `${game.minPlayers}~${game.maxPlayers}명` : '—'
+}
+
 /** 카드 고르는 첫 화면 (0-6, 0-9). */
-export function HubScreen({
-  active, profile, plazaCount, plazaCapacity, onEnter, onEditNickname, onEditAvatar,
-}: Props) {
+export function HubScreen({ active, onEnter, onEditNickname, onEditAvatar }: Props) {
+  const { profile } = useConnection()
+  const games = useGames(active)
   const trackRef = useRef<HTMLDivElement>(null)
   const [index, setIndex] = useState(0)
 
@@ -33,7 +39,7 @@ export function HubScreen({
   const goTo = (next: number) => {
     const track = trackRef.current
     if (!track) return
-    const clamped = Math.max(0, Math.min(GAMES.length - 1, next))
+    const clamped = Math.max(0, Math.min(games.length - 1, next))
     track.scrollTo({ left: clamped * track.clientWidth, behavior: 'smooth' })
     setIndex(clamped)
   }
@@ -46,76 +52,71 @@ export function HubScreen({
           <h1>놀이터</h1>
           <p>playground</p>
         </div>
-        <ProfileChip
-          profile={profile}
-          onEditNickname={onEditNickname}
-          onEditAvatar={onEditAvatar}
-        />
+        <ProfileChip profile={profile} onEditNickname={onEditNickname} onEditAvatar={onEditAvatar} />
       </header>
 
       <div className="pg-body">
         <div className="track" ref={trackRef} onScroll={syncIndex}>
-          {GAMES.map((game) => (
-            <article key={game.id} className={game.ready ? 'gcard' : 'gcard soon'}>
-              <div
-                className={game.imageUrl || game.id === 'plaza' ? 'gcard-art has-art' : 'gcard-art'}
-                style={{ background: game.tone }}
-              >
-                {game.id === 'plaza' ? (
-                  <PlazaCardArt />
-                ) : game.imageUrl ? (
-                  <img src={game.imageUrl} alt="" loading="lazy" decoding="async" />
-                ) : (
-                  <span className="gcard-icon">{game.icon}</span>
-                )}
-              </div>
-              <div className="gcard-body">
-                <div className="gcard-title">
-                  <b>{game.name}</b>
-                  <span className="gcard-en">{game.nameEn}</span>
-                  {game.badge ? (
-                    <span className="badge live">{game.badge}</span>
-                  ) : game.ready ? (
-                    <span className="badge live">플레이 가능</span>
+          {games.map((game) => {
+            const look = lookOf(game.code)
+            return (
+              <article key={game.code} className={game.playable ? 'gcard' : 'gcard soon'}>
+                <div
+                  className={look.drawn || look.imageUrl ? 'gcard-art has-art' : 'gcard-art'}
+                  style={{ background: look.tone }}
+                >
+                  {look.drawn ? (
+                    <PlazaCardArt />
+                  ) : look.imageUrl ? (
+                    <img src={look.imageUrl} alt="" loading="lazy" decoding="async" />
                   ) : (
-                    <span className="badge">준비 중</span>
+                    <span className="gcard-icon">{look.icon}</span>
                   )}
                 </div>
-                <p className="gcard-desc">{game.description}</p>
-                {game.tags?.length ? (
-                  <div className="gcard-tags">
-                    {game.tags.map((tag) => (
-                      <span key={tag} className="tag">#{tag}</span>
-                    ))}
+                <div className="gcard-body">
+                  <div className="gcard-title">
+                    <b>{game.name}</b>
+                    <span className="gcard-en">{game.nameEn}</span>
+                    {look.badge ? (
+                      <span className="badge live">{look.badge}</span>
+                    ) : game.playable ? (
+                      <span className="badge live">플레이 가능</span>
+                    ) : (
+                      <span className="badge">준비 중</span>
+                    )}
                   </div>
-                ) : null}
-                <div className="gcard-meta">
-                  <span>
-                    👥 {game.id === 'plaza' ? `${plazaCount} / ${plazaCapacity}명` : game.players}
-                  </span>
-                  <span>⏱ {game.time}</span>
+                  <p className="gcard-desc">{game.description}</p>
+                  {game.tags.length > 0 && (
+                    <div className="gcard-tags">
+                      {game.tags.map((tag) => (
+                        <span key={tag} className="tag">#{tag}</span>
+                      ))}
+                    </div>
+                  )}
+                  <div className="gcard-meta">
+                    <span>👥 {playersLabel(game)}</span>
+                    <span>⏱ {game.playMinutes ?? '—'}</span>
+                  </div>
+                  <button
+                    type="button"
+                    className={game.playable ? 'btn primary big' : 'btn big'}
+                    disabled={!game.playable}
+                    onClick={() => onEnter(game.code)}
+                  >
+                    {look.cta ?? (game.playable ? '플레이' : '준비 중')}
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  className={game.ready ? 'btn primary big' : 'btn big'}
-                  disabled={!game.ready}
-                  onClick={() => onEnter(game.id)}
-                >
-                  {game.cta ?? (game.ready ? '플레이' : '준비 중')}
-                </button>
-              </div>
-            </article>
-          ))}
+              </article>
+            )
+          })}
         </div>
 
         <div className="pg-ctrl">
-          <button type="button" className="btn icon" title="이전 게임" onClick={() => goTo(index - 1)}>
-            ‹
-          </button>
+          <button type="button" className="btn icon" title="이전 게임" onClick={() => goTo(index - 1)}>‹</button>
           <div className="dots">
-            {GAMES.map((game, i) => (
+            {games.map((game, i) => (
               <button
-                key={game.id}
+                key={game.code}
                 type="button"
                 className={i === index ? 'dot on' : 'dot'}
                 title={game.name}
@@ -124,9 +125,7 @@ export function HubScreen({
               />
             ))}
           </div>
-          <button type="button" className="btn icon" title="다음 게임" onClick={() => goTo(index + 1)}>
-            ›
-          </button>
+          <button type="button" className="btn icon" title="다음 게임" onClick={() => goTo(index + 1)}>›</button>
         </div>
       </div>
     </section>

@@ -1,112 +1,147 @@
 import type { CSSProperties } from 'react'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { useConnection } from '../../app/connectionContext'
 import { ProfileChip } from '../../components/ProfileChip'
-import type { Profile } from '../../profile'
 import { colorHex } from './colors'
-import { PZ_CAPACITY, PZ_FONT_DEFAULT, PZ_SPOTS, timeOfDay } from './constants'
+import { PZ_EMOTES, findSpot, timeOfDay } from './constants'
+import { ColorOverlay } from './ColorOverlay'
+import { DjOverlay } from './DjOverlay'
 import { PlazaCharacter } from './PlazaCharacter'
+import { rideSummary } from './rides'
 import { PlazaChat } from './PlazaChat'
 import { PlazaClock } from './PlazaClock'
 import { PlazaPlayer } from './PlazaPlayer'
 import { PlazaProps } from './PlazaProps'
 import { PlazaScene } from './PlazaScene'
-import type { PlazaChatLine, PlazaMemberView, PlazaTrack, RideSpot } from './types'
+import type { Direction } from './PlazaField'
+import { usePlaza } from './usePlaza'
 import './plaza.css'
 
 interface Props {
   active: boolean
-  profile: Profile
-  members: PlazaMemberView[]
-  chat: PlazaChatLine[]
-  nowPlaying: PlazaTrack | null
-  elapsedSec: number
-  /** 가까이 간 지점. 있으면 광장 위에 Space 안내가 뜬다 (P-11) */
-  nearSpotId?: string | null
   onLeave: () => void
-  onOpenDj: () => void
-  onOpenColor: () => void
   onEditNickname: () => void
   onEditAvatar: () => void
 }
 
-/** 어느 기구에 누가 몇 명 타고 있는지. 시소는 혼자면 그쪽으로 기운 채 멈춘다 (P-14) */
-function rideStates(members: PlazaMemberView[]) {
-  const riders = new Map<RideSpot, PlazaMemberView[]>()
-  for (const member of members) {
-    if (!member.ride) continue
-    const list = riders.get(member.ride.spot) ?? []
-    list.push(member)
-    riders.set(member.ride.spot, list)
-  }
-  const states: Partial<Record<RideSpot, 'idle' | 'riding' | 'solo-0' | 'solo-1'>> = {}
-  for (const [spot, list] of riders) {
-    states[spot] = spot === 'seesaw' && list.length === 1
-      ? (`solo-${list[0].ride!.seat}` as 'solo-0' | 'solo-1')
-      : 'riding'
-  }
-  return states
+const KEY_TO_DIRECTION: Record<string, Direction> = {
+  ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down',
+  a: 'left', d: 'right', w: 'up', s: 'down',
+  A: 'left', D: 'right', W: 'up', S: 'down',
 }
 
-export function PlazaScreen({
-  active, profile, members, chat, nowPlaying, elapsedSec, nearSpotId = null,
-  onLeave, onOpenDj, onOpenColor, onEditNickname, onEditAvatar,
-}: Props) {
-  const [now, setNow] = useState(() => new Date())
-  const [fontStep, setFontStep] = useState(PZ_FONT_DEFAULT)
-  const [volume, setVolume] = useState(70)
-  const [draft, setDraft] = useState('')
+/** 낮·밤은 정시에만 바뀌므로 자주 볼 필요가 없다 */
+const TOD_INTERVAL_MS = 30_000
 
-  /* 시계와 낮·밤은 벽시계를 그대로 따라간다 (P-20, P-21) */
+export function PlazaScreen({ active, onLeave, onEditNickname, onEditAvatar }: Props) {
+  const { profile } = useConnection()
+  const { state, near, field, actions, serverNow } = usePlaza(active, onLeave)
+  const [overlay, setOverlay] = useState<'dj' | 'color' | null>(null)
+  const [tod, setTod] = useState(() => timeOfDay(new Date().getHours()))
+  const chatInput = useRef<HTMLInputElement>(null)
+
+  const leave = () => {
+    setOverlay(null)
+    onLeave()
+  }
+
+  const me = state.members.find((member) => member.id === state.meId)
+  const { rigs, soloSpots } = rideSummary(state.members)
+  const cueSpot = me?.riding ? findSpot(me.riding.spot) : findSpot(near)
+  const cueLabel = me?.riding ? '내리기' : cueSpot?.label
+
   useEffect(() => {
-    const timer = window.setInterval(() => setNow(new Date()), 1000)
+    const timer = window.setInterval(() => setTod(timeOfDay(new Date().getHours())), TOD_INTERVAL_MS)
     return () => window.clearInterval(timer)
   }, [])
 
-  /* 가까이 간 지점에서 Space 를 누르면 그 지점의 동작이 열린다 (P-11, P-15) */
+  /* ---------- 키 입력 ---------- */
+  const stateRef = useRef({ near, riding: false, overlay })
   useEffect(() => {
-    if (!active || nearSpotId !== 'dj') return
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.code !== 'Space') return
-      if (event.target instanceof HTMLInputElement) return
-      event.preventDefault()
-      onOpenDj()
-    }
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
-  }, [active, nearSpotId, onOpenDj])
+    stateRef.current = { near, riding: !!me?.riding, overlay }
+  })
 
-  const me = members.find((member) => member.me)
-  const rides = rideStates(members)
-  const nearSpot = PZ_SPOTS.find((spot) => spot.id === nearSpotId)
-  const seesawSolo = members.filter((m) => m.ride?.spot === 'seesaw').length === 1
+  useEffect(() => {
+    if (!active) return
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      /* 입력칸에서 난 키는 여기서 처리하지 않는다. activeElement 대신 target 을 보는 이유:
+         보내면서 포커스를 빼면 버블링이 올라올 때 activeElement 가 이미 바뀌어 Enter 가 다시 잡힌다 */
+      if (event.target === chatInput.current) return
+
+      const current = stateRef.current
+      if (current.overlay) {
+        if (event.key === 'Escape') {
+          setOverlay(null)
+          event.preventDefault()
+        }
+        return
+      }
+
+      if (event.code === 'Space') {
+        event.preventDefault()
+        if (current.riding) actions.dismount()
+        else if (current.near === 'dj') setOverlay('dj')
+        else if (current.near) actions.ride(current.near)
+        return
+      }
+
+      if (PZ_EMOTES[Number(event.key)]) {
+        event.preventDefault()
+        actions.emote(Number(event.key))
+        return
+      }
+
+      if (event.key === 'Enter') {
+        event.preventDefault()
+        field.clearKeys() /* 누르고 있던 방향키를 놓은 것으로 친다 */
+        chatInput.current?.focus()
+        return
+      }
+
+      const direction = KEY_TO_DIRECTION[event.key]
+      if (direction) {
+        field.setKey(direction, true)
+        event.preventDefault()
+      }
+    }
+
+    const onKeyUp = (event: KeyboardEvent) => {
+      const direction = KEY_TO_DIRECTION[event.key]
+      if (direction) field.setKey(direction, false)
+    }
+    /* 창에서 포커스가 나가면 keyup 이 오지 않아 계속 걷는 것처럼 된다 */
+    const onBlur = () => field.clearKeys()
+
+    window.addEventListener('keydown', onKeyDown)
+    window.addEventListener('keyup', onKeyUp)
+    window.addEventListener('blur', onBlur)
+    return () => {
+      window.removeEventListener('keydown', onKeyDown)
+      window.removeEventListener('keyup', onKeyUp)
+      window.removeEventListener('blur', onBlur)
+      field.clearKeys()
+    }
+  }, [active, actions, field])
+
+  const attach = useCallback(
+    (memberId: number, node: HTMLElement | null) => field.attach(memberId, node),
+    [field],
+  )
 
   return (
-    <section
-      className={active ? 'screen active' : 'screen'}
-      id="screen-plaza"
-      data-tod={timeOfDay(now.getHours())}
-    >
+    <section className={active ? 'screen active' : 'screen'} id="screen-plaza" data-tod={tod}>
       <header className="topbar">
-        <button type="button" className="btn icon" title="나가기" onClick={onLeave}>
-          ←
-        </button>
-        <button
-          type="button"
-          className="btn icon pz-color-btn"
-          title="캐릭터 색"
-          onClick={onOpenColor}
-        >
-          <i style={{ background: colorHex(me?.colorId ?? 'red') }} />
+        <button type="button" className="btn icon" title="나가기" onClick={leave}>←</button>
+        <button type="button" className="btn icon pz-color-btn" title="캐릭터 색"
+                disabled={!me} onClick={() => setOverlay('color')}>
+          <i style={{ background: colorHex(me?.color ?? 'red') }} />
         </button>
         <div className="pz-head">
           <b>놀이터</b>
-          <span className="pz-count">{members.length} / {PZ_CAPACITY}명</span>
+          <span className="pz-count">{state.members.length} / {state.capacity}명</span>
         </div>
-        <ProfileChip
-          profile={profile}
-          onEditNickname={onEditNickname}
-          onEditAvatar={onEditAvatar}
-        />
+        <ProfileChip profile={profile} onEditNickname={onEditNickname} onEditAvatar={onEditAvatar} />
       </header>
 
       <div className="pz-wrap">
@@ -114,49 +149,56 @@ export function PlazaScreen({
           <PlazaScene />
 
           <div className="pz-field">
-            {nearSpot && (
-              <div
-                className="pz-cue"
-                style={{ '--x': `${nearSpot.x}%`, '--y': `${nearSpot.cy}%` } as CSSProperties}
-              >
-                <b>Space</b> <span>{nearSpot.label}</span>
+            {cueSpot && (
+              <div className="pz-cue"
+                   style={{ '--x': `${cueSpot.x}%`, '--y': `${cueSpot.cy}%` } as CSSProperties}>
+                <b>Space</b> <span>{cueLabel}</span>
               </div>
             )}
 
-            <PlazaProps nowPlaying={nowPlaying?.title ?? null} rides={rides} />
+            <PlazaProps nowPlaying={state.music?.title ?? null} rides={rigs} />
 
-            {members.map((member, i) => (
+            {state.members.map((member, index) => (
               <PlazaCharacter
                 key={member.id}
-                member={
-                  member.ride?.spot === 'seesaw'
-                    ? { ...member, ride: { ...member.ride, solo: seesawSolo } }
-                    : member
-                }
-                delay={(i % 4) * 0.35}
+                member={member}
+                isMe={member.id === state.meId}
+                bubble={state.bubbles[member.id]}
+                emote={state.emotes[member.id]}
+                solo={!!member.riding && soloSpots.has(member.riding.spot)}
+                delay={(index % 4) * 0.35}
+                attach={attach}
               />
             ))}
           </div>
 
           <div className="pz-tint" aria-hidden="true" />
-          <PlazaClock now={now} />
-          <PlazaPlayer
-            track={nowPlaying}
-            elapsedSec={elapsedSec}
-            volume={volume}
-            onVolumeChange={setVolume}
-          />
+          <PlazaClock />
+          <PlazaPlayer music={state.music} serverNow={serverNow} />
         </div>
 
-        <PlazaChat
-          lines={chat}
-          fontStep={fontStep}
-          onFontStep={setFontStep}
-          draft={draft}
-          onDraftChange={setDraft}
-          onSend={() => setDraft('')}
-        />
+        <PlazaChat lines={state.chat} inputRef={chatInput} onSend={actions.chat} />
       </div>
+
+      {overlay === 'dj' && (
+        <DjOverlay
+          tracks={state.tracks}
+          current={state.music}
+          onPick={(trackId) => { actions.pickTrack(trackId); setOverlay(null) }}
+          onStop={() => { actions.stopMusic(); setOverlay(null) }}
+          onClose={() => setOverlay(null)}
+        />
+      )}
+
+      {overlay === 'color' && me && (
+        <ColorOverlay
+          colors={state.colors}
+          current={me.color}
+          taken={state.members.filter((m) => m.id !== me.id).map((m) => m.color)}
+          onPick={(color) => { actions.changeColor(color); setOverlay(null) }}
+          onClose={() => setOverlay(null)}
+        />
+      )}
     </section>
   )
 }

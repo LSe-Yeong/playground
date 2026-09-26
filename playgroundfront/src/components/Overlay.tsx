@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom'
 import type { ReactNode } from 'react'
 
 interface Props {
@@ -7,9 +8,14 @@ interface Props {
   children: ReactNode
 }
 
-/** 화면 가운데 뜨는 모달 껍데기. 프로토타입의 .overlay > .overlay-box 구조 그대로다. */
+/**
+ * 화면 가운데 뜨는 모달 (.overlay > .overlay-box).
+ *
+ * body 에 직접 붙인다. 화면 안에 두면 같은 쌓임 맥락에서 놀이기구(z-index 940)나
+ * 진행바(1000)와 겨루게 돼 모달이 그 아래로 깔린다. 프로토타입도 #app 바깥에 뒀다.
+ */
 export function Overlay({ title, narrow = true, onClose, children }: Props) {
-  return (
+  return createPortal(
     <div className="overlay" onClick={onClose}>
       <div
         className={narrow ? 'overlay-box narrow' : 'overlay-box'}
@@ -23,6 +29,7 @@ export function Overlay({ title, narrow = true, onClose, children }: Props) {
         </header>
         {children}
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

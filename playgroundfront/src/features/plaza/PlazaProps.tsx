@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react'
+import type { RideSpot } from './types'
 
 /**
  * 광장의 놀이기구와 장식. 프로토타입 index.html 의 .pz-prop 아홉 개를 그대로 옮겼다.
@@ -6,13 +7,13 @@ import type { CSSProperties } from 'react'
  * 좌표·너비·깊이는 인라인 커스텀 속성으로 준다. 기구는 캐릭터와 같은 기준(y)으로
  * z-index 를 받아야 앞뒤로 지나갈 수 있어, CSS 클래스가 아니라 값으로 넘긴다.
  */
-type RideState = 'idle' | 'riding' | 'solo-0' | 'solo-1'
+export type RideState = 'idle' | 'riding' | 'solo-0' | 'solo-1'
 
 interface Props {
   /** 지금 나오는 곡 제목. 없으면 DJ 부스 위 표지가 뜨지 않는다 */
   nowPlaying?: string | null
   /** 사람이 타고 있는 기구는 움직인다. 시소는 혼자면 그쪽으로 기운 채 멈춘다 */
-  rides?: Partial<Record<'swing' | 'seesaw' | 'merry', RideState>>
+  rides?: Partial<Record<RideSpot, RideState>>
 }
 
 const propStyle = (x: number, y: number, w: number, z: number) =>

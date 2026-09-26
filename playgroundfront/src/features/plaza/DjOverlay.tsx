@@ -1,9 +1,9 @@
+import type { PlazaMusicResponse, PlazaTrackResponse } from '../../api/types'
 import { Overlay } from '../../components/Overlay'
-import type { PlazaTrack } from './types'
 
 interface Props {
-  tracks: PlazaTrack[]
-  current: PlazaTrack | null
+  tracks: PlazaTrackResponse[]
+  current: PlazaMusicResponse | null
   onPick: (trackId: number) => void
   onStop: () => void
   onClose: () => void
@@ -27,9 +27,7 @@ export function DjOverlay({ tracks, current, onPick, onStop, onClose }: Props) {
           </button>
         ))}
       </div>
-      <button type="button" className="btn ghost big" onClick={onStop}>
-        음악 끄기
-      </button>
+      <button type="button" className="btn ghost big" onClick={onStop}>음악 끄기</button>
     </Overlay>
   )
 }
