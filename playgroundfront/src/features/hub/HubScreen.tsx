@@ -3,7 +3,6 @@ import type { GameResponse } from '../../api/types'
 import { useConnection } from '../../app/connectionContext'
 import { ProfileChip } from '../../components/ProfileChip'
 import { lookOf } from './games'
-import { PlazaCardArt } from './PlazaCardArt'
 import { useGames } from './useGames'
 import './hub.css'
 
@@ -62,12 +61,10 @@ export function HubScreen({ active, onEnter, onEditNickname, onEditAvatar }: Pro
             return (
               <article key={game.code} className={game.playable ? 'gcard' : 'gcard soon'}>
                 <div
-                  className={look.drawn || look.imageUrl ? 'gcard-art has-art' : 'gcard-art'}
+                  className={look.imageUrl ? 'gcard-art has-art' : 'gcard-art'}
                   style={{ background: look.tone }}
                 >
-                  {look.drawn ? (
-                    <PlazaCardArt />
-                  ) : look.imageUrl ? (
+                  {look.imageUrl ? (
                     <img src={look.imageUrl} alt="" loading="lazy" decoding="async" />
                   ) : (
                     <span className="gcard-icon">{look.icon}</span>

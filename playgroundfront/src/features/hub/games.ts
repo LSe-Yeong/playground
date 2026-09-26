@@ -1,5 +1,6 @@
 import comingSoonArt from '../../assets/coming-soon.webp'
 import omtThumb from '../../assets/omt-thumb.webp'
+import plazaThumb from '../../assets/plaza-thumb.webp'
 
 /**
  * 카드의 생김새. 이름 · 설명 · 인원은 서버(GET /games)가 주고, 그림과 버튼 문구처럼
@@ -10,14 +11,12 @@ export interface CardLook {
   icon: string
   tone: string
   imageUrl?: string
-  /** 놀이터 카드만 인라인 SVG 다 */
-  drawn?: boolean
   cta?: string
   badge?: string
 }
 
 export const CARD_LOOKS: Record<string, CardLook> = {
-  plaza: { icon: '🛝', tone: '#5bc236', drawn: true, cta: '입장하기', badge: '상시 열림' },
+  plaza: { icon: '🛝', tone: '#5bc236', imageUrl: plazaThumb, cta: '입장하기', badge: '상시 열림' },
   onemore: { icon: '⛏', tone: '#f0553d', imageUrl: omtThumb },
   game2: { icon: '🎲', tone: '#2d9cdb', imageUrl: comingSoonArt },
   game3: { icon: '🃏', tone: '#5bc236', imageUrl: comingSoonArt },
