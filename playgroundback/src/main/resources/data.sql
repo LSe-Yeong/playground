@@ -15,11 +15,13 @@ INSERT INTO game_tags (game_id, name, sort_order) VALUES
 ((SELECT id FROM games WHERE code = 'onemore'), '쉬운 규칙', 2);
 
 -- 로컬 개발용 곡 시드. 프로토타입(docs/prototype/app.js 의 PZ_TRACKS)과 같은 순서·길이다.
+-- 음원은 static/audio 에 두고 이 서버가 그대로 내려준다. 로컬 시드라 호스트를 박아 둔다 —
+-- 클라이언트가 <audio src> 에 그대로 넣으므로 상대 경로면 프론트 출처로 잘못 붙는다.
 -- duration_sec 은 실제 음원 길이와 반드시 맞아야 한다. 짧으면 끝나기 전에 넘어가고, 길면 침묵이 흐른다.
 INSERT INTO plaza_tracks (code, title, mood, src_url, duration_sec, sort_order, created_at) VALUES
-('energetic', '신나는 하루', 'Energetic', 'https://cdn.playground.app/audio/01_energetic_inst.mp3', 132, 0, CURRENT_TIMESTAMP),
-('calm',      '잔잔한 오후', 'Calm',      'https://cdn.playground.app/audio/02_calm_inst.mp3',      132, 1, CURRENT_TIMESTAMP),
-('tension',   '두근두근',    'Tension',   'https://cdn.playground.app/audio/03_tension_inst.mp3',   132, 2, CURRENT_TIMESTAMP),
-('cute',      '깡총깡총',    'Cute',      'https://cdn.playground.app/audio/04_cute_inst.mp3',      132, 3, CURRENT_TIMESTAMP),
-('mystic',    '신비한 숲',   'Mystic',    'https://cdn.playground.app/audio/05_mystic_inst.mp3',    132, 4, CURRENT_TIMESTAMP),
-('epic',      '웅장한 광장', 'Epic',      'https://cdn.playground.app/audio/06_epic_inst.mp3',      132, 5, CURRENT_TIMESTAMP);
+('energetic', '신나는 하루', 'Energetic', 'http://localhost:8080/pg/api/audio/01_energetic_inst.mp3', 132, 0, CURRENT_TIMESTAMP),
+('calm',      '잔잔한 오후', 'Calm',      'http://localhost:8080/pg/api/audio/02_calm_inst.mp3',      132, 1, CURRENT_TIMESTAMP),
+('tension',   '두근두근',    'Tension',   'http://localhost:8080/pg/api/audio/03_tension_inst.mp3',   132, 2, CURRENT_TIMESTAMP),
+('cute',      '깡총깡총',    'Cute',      'http://localhost:8080/pg/api/audio/04_cute_inst.mp3',      132, 3, CURRENT_TIMESTAMP),
+('mystic',    '신비한 숲',   'Mystic',    'http://localhost:8080/pg/api/audio/05_mystic_inst.mp3',    132, 4, CURRENT_TIMESTAMP),
+('epic',      '웅장한 광장', 'Epic',      'http://localhost:8080/pg/api/audio/06_epic_inst.mp3',      132, 5, CURRENT_TIMESTAMP);
