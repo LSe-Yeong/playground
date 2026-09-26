@@ -12,6 +12,9 @@ public record SocketEvent<T>(String type, long seq, Instant at, T payload) {
 
     public static final String ERROR_TYPE = "error";
 
+    /** 방·광장 밖에서 보내는 메시지의 seq. 방·광장 안의 메시지는 그 공간의 seq 를 쓴다. */
+    public static final long NO_SEQ = 0;
+
     public static SocketEvent<ErrorResponse> error(long seq, Instant at, ErrorResponse error) {
         return new SocketEvent<>(ERROR_TYPE, seq, at, error);
     }

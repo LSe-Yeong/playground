@@ -28,6 +28,7 @@ playground:
     heartbeat-timeout: 90s
     sweep-interval: 30s
   websocket:
+    ping-interval: 30s
     send-time-limit: 10s
     buffer-size-limit: 512KB
     allowed-origins:

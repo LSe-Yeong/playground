@@ -23,10 +23,12 @@ public record PlaygroundProperties(Session session, WebSocket websocket) {
     }
 
     /**
+     * @param pingInterval    서버가 ping 을 보내는 주기. 브라우저가 pong 으로 답하면 last_seen_at 이 갱신된다
      * @param sendTimeLimit   ConcurrentWebSocketSessionDecorator 의 전송 시간 한도
      * @param bufferSizeLimit ConcurrentWebSocketSessionDecorator 의 버퍼 한도
      */
     public record WebSocket(
+            Duration pingInterval,
             Duration sendTimeLimit,
             DataSize bufferSizeLimit,
             List<String> allowedOrigins
