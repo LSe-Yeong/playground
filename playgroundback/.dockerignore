@@ -1,0 +1,11 @@
+# 빌드 컨텍스트를 작게 유지한다. build/ 와 .gradle/ 은 호스트 산출물이라
+# 이미지 안에서 다시 만들어야 재현 가능한 빌드가 된다.
+build/
+.gradle/
+bin/
+out/
+.idea/
+*.iml
+.DS_Store
+HELP.md
+docs/
