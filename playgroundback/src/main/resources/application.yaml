@@ -22,7 +22,7 @@ server:
 
 playground:
   allowed-origins:
-    - https://playground.app
+    - https://j15a102.p.ssafy.io
   session:
     cookie-name: sessionKey
     cookie-secure: true

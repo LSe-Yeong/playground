@@ -1,0 +1,4 @@
+.DS_Store
+
+# compose 가 읽는 로컬 설정 (.env.example 를 복사해 쓴다)
+.env
